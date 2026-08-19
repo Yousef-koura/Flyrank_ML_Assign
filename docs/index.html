@@ -1,1283 +1,3888 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ranking Pages for Content Review — FlyRank ML Capstone</title>
-<meta name="description" content="A decision-support model using observed search-visibility signals to prioritize human SEO review. Logistic Regression achieves 0.971 Precision@1000 vs 0.828 baseline.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#FAF9F6;--bg-alt:#F4F2EE;--bg-card:#FFF;
-  --primary:#0F2B3C;--primary-light:#1A3D52;
-  --accent:#1A7A7A;--accent-light:#2AA8A8;--accent-dim:rgba(26,122,122,0.07);
-  --green:#2A7D53;--green-light:#E8F5E9;--red:#B33A3A;--red-light:#FDF2F2;
-  --amber:#9A6C14;--text:#1A1A1A;--text-s:#4A5568;--text-m:#5C6F82;
-  --border:#E2DFD8;--border-l:#EEECEA;
-  --sh-xs:0 1px 2px rgba(15,43,60,0.04);--sh:0 1px 3px rgba(15,43,60,0.06);
-  --sh-md:0 4px 16px rgba(15,43,60,0.08);--sh-lg:0 12px 40px rgba(15,43,60,0.12);
-  --r:8px;--r-lg:14px;
-  --serif:'Playfair Display',Georgia,serif;
-  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --mono:'JetBrains Mono','Fira Code',monospace;
-  --mw:1080px;--spy:2.15rem;
-  --nav-h:52px
-}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-html{scroll-behavior:smooth;font-size:16px;-webkit-font-smoothing:antialiased}
-body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.78;overflow-x:hidden;letter-spacing:.01em}
-body.menu-open{overflow:hidden}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking Pages for Content Review — FlyRank ML Capstone</title>
+  <meta name="description"
+    content="A decision-support model using observed search-visibility signals to prioritize human SEO review. Logistic Regression achieves 0.971 Precision@1000 vs 0.828 baseline.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
-.progress-bar{position:fixed;top:0;left:0;width:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-light));z-index:1100;transition:width .1s linear}
+    :root {
+      --bg: #FAF9F6;
+      --bg-alt: #F4F2EE;
+      --bg-card: #FFF;
+      --primary: #0F2B3C;
+      --primary-light: #1A3D52;
+      --accent: #1A7A7A;
+      --accent-light: #2AA8A8;
+      --accent-dim: rgba(26, 122, 122, 0.07);
+      --green: #2A7D53;
+      --green-light: #E8F5E9;
+      --red: #B33A3A;
+      --red-light: #FDF2F2;
+      --amber: #9A6C14;
+      --text: #1A1A1A;
+      --text-s: #4A5568;
+      --text-m: #5C6F82;
+      --border: #E2DFD8;
+      --border-l: #EEECEA;
+      --sh-xs: 0 1px 2px rgba(15, 43, 60, 0.04);
+      --sh: 0 1px 3px rgba(15, 43, 60, 0.06);
+      --sh-md: 0 4px 16px rgba(15, 43, 60, 0.08);
+      --sh-lg: 0 12px 40px rgba(15, 43, 60, 0.12);
+      --r: 8px;
+      --r-lg: 14px;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --mw: 1200px;
+      --spy: 2.15rem;
+      --nav-h: 52px
+    }
 
-.nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(250,249,246,0.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
-.nav.scrolled{border-bottom-color:var(--border);box-shadow:0 2px 12px rgba(15,43,60,0.06)}
-.nav-inner{max-width:var(--mw);margin:0 auto;padding:0 2rem;display:flex;align-items:center;height:var(--nav-h);gap:1.5rem;transition:height .3s ease}
-.nav.scrolled .nav-inner{height:44px}
-.nav-brand{font-family:var(--serif);font-weight:700;font-size:.88rem;color:var(--primary);letter-spacing:-.02em;white-space:nowrap;flex-shrink:0;transition:font-size .3s ease}
-.nav.scrolled .nav-brand{font-size:.8rem}
-.nav-links{display:flex;gap:.3rem;list-style:none;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
-.nav-links::-webkit-scrollbar{display:none}
-.nav-links a{display:block;padding:.4rem .7rem;font-size:.72rem;font-weight:500;color:var(--text-m);text-decoration:none;border-radius:6px;white-space:nowrap;transition:color .2s,background .2s;letter-spacing:.01em;position:relative}
-.nav-links a:hover{color:var(--accent);background:var(--accent-dim)}
-.nav-links a.active{color:var(--accent);background:var(--accent-dim);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px}
-.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:.5rem;color:var(--text)}
-.nav-toggle svg{width:20px;height:20px}
+    @media(prefers-reduced-motion:reduce) {
 
-.mobile-overlay{position:fixed;inset:0;z-index:1099;background:rgba(15,43,60,0.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s ease}
-.mobile-overlay.open{opacity:1;pointer-events:auto}
-.mobile-menu{position:fixed;top:0;left:0;right:0;z-index:1101;background:#0F2B3C;color:#fff;transform:translateY(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);max-height:100vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.mobile-menu.open{transform:translateY(0)}
-.mobile-menu-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08)}
-.mobile-menu-title{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--accent-light)}
-.mobile-menu-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:1.5rem;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .2s,color .2s}
-.mobile-menu-close:hover,.mobile-menu-close:focus{background:rgba(255,255,255,.1);color:#fff}
-.mobile-menu-nav{padding:1rem 0 .5rem}
-.mobile-menu-link{display:flex;align-items:center;gap:.85rem;padding:.85rem 1.5rem;text-decoration:none;color:rgba(255,255,255,.6);transition:background .15s,color .15s;border-left:3px solid transparent}
-.mobile-menu-link:active{background:rgba(255,255,255,.05)}
-.mobile-menu-link.active{color:#fff;border-left-color:var(--accent-light);background:rgba(26,122,122,.12)}
-.mobile-menu-link .mn-num{font-family:var(--mono);font-size:.6rem;font-weight:600;color:var(--accent-light);width:1.5rem;flex-shrink:0;letter-spacing:.02em}
-.mobile-menu-link .mn-name{font-size:.88rem;font-weight:500;letter-spacing:.01em}
-.mobile-menu-divider{height:1px;background:rgba(255,255,255,.08);margin:.5rem 1.5rem}
-.mobile-menu-footer{padding:.75rem 1.5rem 1.25rem}
-.mobile-menu-footer a{display:block;padding:.6rem .85rem;font-size:.78rem;font-weight:500;color:rgba(255,255,255,.45);text-decoration:none;border-radius:6px;transition:color .2s,background .2s}
-.mobile-menu-footer a:hover,.mobile-menu-footer a:active{color:var(--accent-light);background:rgba(255,255,255,.05)}
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important
+      }
+    }
 
-.reveal{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease}
-.reveal.visible{opacity:1;transform:translateY(0)}
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased
+    }
 
-.hero{padding:5rem 2rem 2.5rem;background:linear-gradient(170deg,#0B2233 0%,#0F2B3C 35%,#152E40 70%,#1A3D52 100%);color:#fff;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;top:-40%;right:-20%;width:700px;height:700px;background:radial-gradient(circle,rgba(26,122,122,0.12) 0%,transparent 65%);border-radius:50%;pointer-events:none}
-.hero-inner{max-width:var(--mw);margin:0 auto;position:relative;z-index:1}
-.eyebrow{font-family:var(--mono);font-size:.65rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-light);margin-bottom:1.25rem;display:inline-block;padding:.3rem .85rem;border:1px solid rgba(42,168,168,0.25);border-radius:20px}
-.hero h1{font-family:var(--serif);font-size:clamp(1.85rem,4.2vw,3rem);font-weight:700;line-height:1.12;letter-spacing:-.025em;max-width:780px;margin-bottom:.5rem}
-.hero-meta{font-size:.8rem;color:rgba(255,255,255,.6);margin-bottom:1.5rem;font-weight:400}
-.hero-decision{font-size:1rem;color:rgba(255,255,255,.82);max-width:620px;margin-bottom:1.5rem;line-height:1.6;font-weight:400}
-.hero-decision strong{color:#fff;font-weight:600}
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.78;
+      overflow-x: hidden;
+      letter-spacing: .01em
+    }
 
-.hero-headline{display:flex;flex-wrap:wrap;gap:1rem;align-items:stretch;margin-bottom:1.5rem}
-.hero-headline-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:1.1rem 1.4rem;min-width:170px;flex:1;transition:transform .2s,box-shadow .2s}
-.hero-headline-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
-.hero-headline-card.primary{background:rgba(26,122,122,0.18);border-color:rgba(42,168,168,0.3)}
-.hl-value{font-family:var(--serif);font-size:2rem;font-weight:800;color:#fff;line-height:1}
-.hero-headline-card.primary .hl-value{color:var(--accent-light)}
-.hl-label{font-size:.68rem;color:rgba(255,255,255,.6);margin-top:.3rem;text-transform:uppercase;letter-spacing:.06em;font-weight:500}
-.hl-sub{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.4rem;line-height:1.5}
-.hl-sub strong{color:rgba(255,255,255,.85)}
+    body.menu-open {
+      overflow: hidden
+    }
 
-.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.08);border-radius:var(--r);overflow:hidden;max-width:700px;margin:1.25rem auto 0}
-.hero-stat{background:rgba(255,255,255,.03);padding:.75rem 1rem;text-align:center}
-.hs-value{font-family:var(--serif);font-size:1.2rem;font-weight:700;color:#fff;line-height:1.1}
-.hs-label{font-size:.62rem;color:rgba(255,255,255,.55);margin-top:.2rem;text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      z-index: 1100;
+      transition: width .1s linear
+    }
 
-.abstract-block{background:var(--bg-card);border-left:3px solid var(--accent);border-radius:0 var(--r-lg) var(--r-lg) 0;padding:1.1rem 1.75rem;margin:1.5rem auto 0;max-width:780px;box-shadow:var(--sh)}
-.abstract-sentence{position:relative;padding-left:1.8rem;margin-bottom:.5rem;color:var(--text-s);line-height:1.7;font-size:.85rem}
-.abstract-sentence:last-child{margin-bottom:0}
-.abstract-sentence .num{position:absolute;left:0;top:.05rem;font-family:var(--mono);font-size:.62rem;font-weight:600;color:var(--accent);width:1.4rem}
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: rgba(250, 249, 246, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid transparent;
+      transition: border-color .3s, box-shadow .3s
+    }
 
-.section{padding:var(--spy) 2rem;max-width:var(--mw);margin:0 auto;position:relative}
-.section + .section{margin-top:0}
-.section-alt{background:var(--bg-alt);border-top:1px solid var(--border-l)}
-.section-label{font-family:var(--mono);font-size:.6rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:.35rem;display:inline-block;padding:.2rem .65rem;border-radius:4px;background:rgba(26,122,122,0.06);border-left:3px solid var(--accent)}
-.section h2{font-family:var(--serif);font-size:clamp(1.4rem,2.8vw,2rem);font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--primary);margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border-l)}
-.section h3{font-family:var(--sans);font-size:.88rem;font-weight:600;color:var(--primary);margin-bottom:.35rem;margin-top:1.25rem;position:relative;padding-left:.85rem}
-.section h3::before{content:'';position:absolute;left:0;top:.15rem;bottom:.15rem;width:3px;background:var(--accent);border-radius:2px}
-.section h3:first-child{margin-top:0}
-.section h3:first-child::before{display:none}
-.section h3:first-child{padding-left:0}
-.section p{color:var(--text-s);line-height:1.78;margin-bottom:.6rem;max-width:720px}
+    .nav.scrolled {
+      border-bottom-color: var(--border);
+      box-shadow: 0 2px 12px rgba(15, 43, 60, 0.06)
+    }
 
-.decision-summary{display:grid;grid-template-columns:auto 1fr;gap:.5rem 1.25rem;margin:.75rem 0;max-width:520px;font-size:.82rem}
-.decision-summary dt{font-family:var(--mono);font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;font-size:.68rem;padding-top:.15rem}
-.decision-summary dd{color:var(--text-s);line-height:1.55}
+    .nav-inner {
+      max-width: var(--mw);
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      height: var(--nav-h);
+      gap: 2rem;
+      transition: height .3s ease
+    }
 
-.safety-box{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin:.75rem 0;box-shadow:var(--sh-xs)}
-.safety-side{background:var(--bg-card);padding:1rem 1.25rem}
-.safety-side h4{font-family:var(--mono);font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem}
-.safety-side.does h4{color:var(--green)}
-.safety-side.doesnot h4{color:var(--red)}
-.safety-side ul{list-style:none;margin:0;padding:0}
-.safety-side li{font-size:.78rem;color:var(--text-s);line-height:1.5;padding:.2rem 0 .2rem 1rem;position:relative}
-.safety-side.does li::before{content:'';position:absolute;left:0;top:.55rem;width:6px;height:6px;border-radius:50%;background:var(--green)}
-.safety-side.doesnot li::before{content:'';position:absolute;left:0;top:.55rem;width:6px;height:6px;border-radius:50%;background:var(--red)}
+    .nav.scrolled .nav-inner {
+      height: 44px
+    }
 
-.data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:.75rem 0}
-.data-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;text-align:center;box-shadow:var(--sh-xs);transition:box-shadow .2s,transform .2s}
-.data-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
-.data-card .number{font-family:var(--serif);font-size:1.6rem;font-weight:700;color:var(--primary);line-height:1.1}
-.data-card .desc{font-size:.68rem;color:var(--text-m);margin-top:.2rem;text-transform:uppercase;letter-spacing:.04em}
+    .nav-brand {
+      font-family: var(--serif);
+      font-weight: 700;
+      font-size: .95rem;
+      color: var(--primary);
+      letter-spacing: -.02em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: font-size .3s ease
+    }
 
-.pipeline{display:flex;flex-direction:column;gap:0;max-width:520px;margin:.75rem auto}
-.pipeline-step{display:flex;align-items:flex-start;gap:.85rem;position:relative;cursor:default}
-.pipeline-node{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.6rem;font-weight:600;position:relative;z-index:1;transition:transform .2s,background .2s}
-.pipeline-step:hover .pipeline-node{transform:scale(1.12);background:var(--primary)}
-.pipeline-content{padding:.15rem 0 1rem 0;flex:1}
-.pipeline-content strong{display:block;font-size:.82rem;font-weight:600;color:var(--primary);margin-bottom:.05rem}
-.pipeline-content span{font-size:.74rem;color:var(--text-m)}
-.pipeline-hover{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.74rem;color:var(--accent);margin-top:.2rem;line-height:1.5}
-.pipeline-step:hover .pipeline-hover{max-height:80px;opacity:1}
-.pipeline-connector{position:absolute;left:13px;top:28px;bottom:0;width:2px;background:var(--border)}
-.pipeline-step:last-child .pipeline-connector{display:none}
+    .nav.scrolled .nav-brand {
+      font-size: .85rem
+    }
 
-.method-facts{display:grid;grid-template-columns:1fr 1fr;gap:.75rem 1.5rem;margin:.6rem 0;max-width:600px}
-.method-fact dt{font-family:var(--mono);font-size:.62rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.1rem}
-.method-fact dd{font-size:.78rem;color:var(--text-s);line-height:1.5}
+    .nav-links {
+      display: flex;
+      gap: 1.75rem;
+      list-style: none;
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none
+    }
 
-.table-wrap{overflow-x:auto;margin:.7rem 0;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh-xs);-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;background:var(--bg-card);min-width:400px}
-thead{background:var(--primary);color:#fff}
-thead th{position:sticky;top:0;z-index:2}
-th{padding:.5rem .75rem;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:left;white-space:nowrap;font-feature-settings:"smcp";-webkit-font-feature-settings:"smcp"}
-td{padding:.4rem .75rem;font-size:.8rem;border-bottom:1px solid var(--border-l);color:var(--text-s);transition:background .15s}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(26,122,122,0.03)}
-.highlight-row td{background:rgba(26,122,122,0.04);font-weight:500;color:var(--text)}
-.metric-highlight{font-family:var(--mono);font-weight:600;color:var(--accent)}
-.metric-secondary{font-family:var(--mono);color:var(--text-m)}
-.table-caption{font-size:.72rem;color:var(--text-m);margin-top:.5rem;font-style:italic;max-width:720px}
+    .nav-links::-webkit-scrollbar {
+      display: none
+    }
 
-.results-hero{display:grid;grid-template-columns:1fr auto 1fr;gap:1.25rem;align-items:center;margin:1.25rem 0;max-width:750px}
-.results-hero-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.75rem 2rem;text-align:center;box-shadow:var(--sh-md);transition:transform .25s ease,box-shadow .25s ease;position:relative}
-.results-hero-card:hover{transform:translateY(-3px);box-shadow:var(--sh-lg)}
-.results-hero-card.primary{border-color:var(--accent);border-width:2px;box-shadow:var(--sh-lg),0 0 0 1px rgba(26,122,122,0.1);background:linear-gradient(180deg,rgba(26,122,122,0.04) 0%,rgba(26,122,122,0.01) 40%,var(--bg-card) 100%)}
-.rh-model{font-family:var(--mono);font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-m);margin-bottom:.4rem}
-.results-hero-card.primary .rh-model{color:var(--accent)}
-.rh-value{font-family:var(--serif);font-size:2.5rem;font-weight:800;color:var(--primary);line-height:1}
-.results-hero-card.primary .rh-value{color:var(--accent)}
-.rh-ci{font-family:var(--mono);font-size:.72rem;color:var(--text-m);margin-top:.25rem}
-.rh-metric{font-size:.74rem;color:var(--text-s);margin-top:.4rem}
-.results-hero-vs{text-align:center}
-.vs-text{font-family:var(--serif);font-size:.9rem;font-weight:700;color:var(--text-m)}
-.vs-lift{font-family:var(--mono);font-size:.78rem;font-weight:600;color:var(--green);margin-top:.2rem}
-.vs-baserate{font-size:.68rem;color:var(--text-m);margin-top:.4rem;line-height:1.4}
+    .nav-links a {
+      display: block;
+      padding: .45rem .55rem;
+      font-size: .85rem;
+      font-weight: 500;
+      color: var(--text-m);
+      text-decoration: none;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: color .2s, background .2s;
+      letter-spacing: .01em;
+      position: relative
+    }
 
-.comparison-bars{margin:.75rem 0;max-width:560px}
-.comparison-bars h3{margin-top:0;margin-bottom:.75rem}
-.bar-row{display:grid;grid-template-columns:72px 1fr 55px;align-items:center;gap:.65rem;margin-bottom:.5rem}
-.bar-label{font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--text-s);text-align:right}
-.bar-label.primary-label{color:var(--accent)}
-.bar-track{height:24px;background:var(--border-l);border-radius:4px;overflow:hidden;position:relative}
-.bar-fill{height:100%;border-radius:4px;transition:width .8s ease}
-.bar-fill.lr{background:linear-gradient(90deg,var(--accent),var(--accent-light))}
-.bar-fill.rf{background:linear-gradient(90deg,#5A7A8A,#7A9AAA)}
-.bar-fill.baseline{background:linear-gradient(90deg,#A0A0A0,#B8B8B8)}
-.bar-fill.baserate{background:linear-gradient(90deg,#C8C8C8,#D8D8D8)}
-.bar-value{font-family:var(--mono);font-size:.74rem;font-weight:600;color:var(--text)}
-.bar-value.primary-value{color:var(--accent)}
-.bar-legend{display:flex;gap:1.25rem;margin-top:.4rem;flex-wrap:wrap}
-.bar-legend span{font-size:.68rem;color:var(--text-m);display:flex;align-items:center;gap:.3rem}
-.bar-legend span::before{content:'';width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.bar-legend .leg-lr::before{background:var(--accent)}
-.bar-legend .leg-rf::before{background:#5A7A8A}
-.bar-legend .leg-bl::before{background:#A0A0A0}
-.bar-legend .leg-br::before{background:#C8C8C8}
+    .nav-links a:hover {
+      color: var(--accent);
+      background: var(--accent-dim)
+    }
 
-.figure-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:.75rem 0}
-.figure-grid-primary .figure-card{grid-column:1/-1}
-.figure-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .25s,transform .2s;cursor:pointer}
-.figure-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
-.figure-card img{width:100%;height:auto;display:block}
-.figure-card-body{padding:.85rem 1.1rem 1rem}
-.figure-card-body h4{font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.2rem}
-.figure-card-body p{font-size:.74rem;color:var(--text-m);line-height:1.55;margin-bottom:.3rem}
-.figure-card-body .takeaway{font-size:.72rem;font-weight:500;color:var(--accent);padding-top:.3rem;border-top:1px solid var(--border-l);margin-bottom:0}
+    .nav-links a.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 2px
+    }
 
-/* ── Chart section: unified card style + 2-col grid ── */
-#results .figure-grid{
-  grid-template-columns:1fr 1fr;
-  grid-template-areas:
-    "action confidence"
-    "archetype queue"
-    "client client";
-  gap:.75rem;
-}
-#results .figure-grid-primary .figure-card{grid-column:auto}
-#results .figure-card:nth-child(1){grid-area:action}
-#results .figure-card:nth-child(2){grid-area:archetype}
-#results .figure-card:nth-child(3){grid-area:queue}
-#results .figure-card:nth-child(4){grid-area:client}
-#results .figure-card:nth-child(5){grid-area:confidence}
-#results .figure-card{
-  border-top:3px solid var(--accent);
-}
-#results .figure-card img{
-  filter:saturate(0.4) hue-rotate(12deg) brightness(1.03);
-  background:var(--bg-alt);
-}
+    .nav.scrolled .nav-links a {
+      font-size: .8rem;
+      padding: .35rem .5rem
+    }
 
-.lightbox{position:fixed;inset:0;z-index:2000;background:rgba(15,43,60,0.92);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease;backdrop-filter:blur(8px)}
-.lightbox.open{opacity:1;pointer-events:auto}
-.lightbox img{max-width:90vw;max-height:85vh;border-radius:var(--r);box-shadow:0 20px 60px rgba(0,0,0,.4)}
-.lightbox-close{position:absolute;top:1.5rem;right:1.5rem;background:none;border:none;color:#fff;font-size:1.8rem;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .2s}
-.lightbox-close:hover{background:rgba(255,255,255,0.15)}
-.lightbox-caption{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.85);font-size:.85rem;text-align:center;max-width:600px}
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: .5rem;
+      color: var(--text)
+    }
 
-.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.75rem 0}
-.tier-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.1rem 1.1rem;position:relative;overflow:hidden;box-shadow:var(--sh-xs);transition:box-shadow .2s,transform .2s}
-.tier-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
-.tier-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
-.tier-card.review::before{background:var(--accent)}
-.tier-card.monitor::before{background:var(--amber)}
-.tier-card.deprioritise::before{background:var(--text-m)}
-.tier-card.review{border-color:rgba(26,122,122,0.25);box-shadow:var(--sh),0 0 0 1px rgba(26,122,122,0.06)}
-.tier-card.review::before{height:5px}
-.tier-label{font-family:var(--mono);font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
-.tier-card.review .tier-label{color:var(--accent)}
-.tier-card.monitor .tier-label{color:var(--amber)}
-.tier-card.deprioritise .tier-label{color:var(--text-m)}
-.tier-count{font-family:var(--serif);font-size:1.6rem;font-weight:700;color:var(--primary);line-height:1.1}
-.tier-card.review .tier-count{color:var(--accent)}
-.tier-pct{font-size:.7rem;color:var(--text-m);margin-bottom:.5rem}
-.tier-desc{font-size:.78rem;color:var(--text-s);line-height:1.5}
-.tier-action{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.72rem;color:var(--accent);margin-top:.4rem;line-height:1.5;font-weight:500}
-.tier-card:hover .tier-action{max-height:60px;opacity:1}
+    .nav-toggle svg {
+      width: 20px;
+      height: 20px
+    }
 
-.limitation-list{list-style:none;counter-reset:lim;max-width:780px;margin:.75rem 0}
-.limitation-list li{counter-increment:lim;position:relative;padding:.7rem .85rem .7rem 2.8rem;margin-bottom:.4rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);font-size:.8rem;color:var(--text-s);line-height:1.6;box-shadow:var(--sh-xs);transition:box-shadow .2s}
-.limitation-list li:hover{box-shadow:var(--sh)}
-.limitation-list li::before{content:counter(lim);position:absolute;left:.9rem;top:.85rem;font-family:var(--mono);font-size:.68rem;font-weight:600;color:var(--accent);width:1.2rem;text-align:center}
-.limitation-list li strong{color:var(--text);display:inline;margin-bottom:0;font-size:.82rem}
+    .mobile-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1099;
+      background: rgba(15, 43, 60, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s ease
+    }
 
-.rec-list{list-style:none;max-width:780px;margin:.75rem 0}
-.rec-list li{display:flex;gap:.75rem;align-items:flex-start;padding:.65rem 0;border-bottom:1px solid var(--border-l)}
-.rec-list li:last-child{border-bottom:none}
-.rec-num{font-family:var(--mono);font-size:.6rem;font-weight:600;color:var(--accent);background:rgba(26,122,122,0.08);border-radius:6px;padding:.25rem .5rem;flex-shrink:0;margin-top:.1rem}
-.rec-body strong{display:block;font-size:.85rem;color:var(--primary);margin-bottom:.1rem}
-.rec-body span{font-size:.78rem;color:var(--text-s);line-height:1.55}
-.rec-signal{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.72rem;color:var(--accent);margin-top:.25rem;line-height:1.5}
-.rec-list li:hover .rec-signal{max-height:50px;opacity:1}
+    .mobile-overlay.open {
+      opacity: 1;
+      pointer-events: auto
+    }
 
-.evidence-chain{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0;align-items:center}
-.evidence-node{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .8rem;flex:1;min-width:100px;box-shadow:var(--sh-xs);text-align:center}
-.evidence-node .week{font-family:var(--mono);font-size:.56rem;font-weight:600;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.1rem}
-.evidence-node .title{font-size:.72rem;font-weight:600;color:var(--primary);margin-bottom:.05rem}
-.evidence-node .desc{font-size:.62rem;color:var(--text-m)}
-.evidence-arrow{display:flex;align-items:center;color:var(--text-m);font-size:.8rem;flex-shrink:0}
+    .mobile-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1101;
+      background: #0F2B3C;
+      color: #fff;
+      transform: translateY(-100%);
+      transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+      max-height: 100vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch
+    }
 
-.groupkfold-note{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1.1rem;margin:.6rem 0;font-size:.78rem;color:var(--text-s);line-height:1.6;box-shadow:var(--sh-xs)}
-.groupkfold-note strong{color:var(--text)}
+    .mobile-menu.open {
+      transform: translateY(0)
+    }
 
-.ack-team{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:.75rem 0;max-width:720px}
-.ack-person{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem;text-align:center;box-shadow:var(--sh-xs);transition:box-shadow .2s}
-.ack-person:hover{box-shadow:var(--sh)}
-.ack-person:last-child{border-bottom:none}
-.ack-person strong{color:var(--text);font-weight:600;font-size:.88rem;display:block;margin-bottom:.2rem}
-.ack-person .ack-role{font-family:var(--mono);font-size:.58rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-top:.15rem}
+    .mobile-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .9rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, .08)
+    }
 
-.footer{background:var(--primary);color:rgba(255,255,255,.6);padding:2rem 2rem;text-align:center;font-size:.74rem;line-height:1.8}
-.footer a{color:var(--accent-light);text-decoration:none}
-.footer a:hover{text-decoration:underline}
+    .mobile-menu-title {
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent-light)
+    }
 
-/* Back to top */
-.back-to-top{position:fixed;bottom:1.5rem;right:1.5rem;z-index:1050;width:44px;height:44px;border-radius:50%;background:var(--primary);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-md);opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .25s ease,transform .25s ease,background .2s}
-.back-to-top.visible{opacity:1;transform:translateY(0);pointer-events:auto}
-.back-to-top:hover{background:var(--accent)}
-.back-to-top:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.back-to-top svg{width:20px;height:20px}
-@media(max-width:768px){
-  .back-to-top{bottom:1.25rem;right:1.25rem;width:40px;height:40px}
-}
+    .mobile-menu-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, .7);
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background .2s, color .2s
+    }
 
-/* Figure width constraints */
-.figure-grid{max-width:880px}
-#results .figure-grid{max-width:100%}
-.figure-card img{max-height:420px;object-fit:contain;background:var(--bg-alt)}
-#results .figure-card img{max-height:320px}
-.comparison-bars{max-width:520px}
+    .mobile-menu-close:hover,
+    .mobile-menu-close:focus {
+      background: rgba(255, 255, 255, .1);
+      color: #fff
+    }
 
-/* Results hero refinements */
-.results-hero{max-width:720px}
-.results-hero-card.primary{border-color:var(--accent);border-width:2px;position:relative}
-.results-hero-card.primary::after{content:'';position:absolute;inset:-3px;border-radius:calc(var(--r-lg) + 3px);border:1px solid rgba(26,122,122,0.15);pointer-events:none}
+    .mobile-menu-nav {
+      padding: 1rem 0 .5rem
+    }
 
-/* Section hierarchy enhancements */
-.section{position:relative;scroll-margin-top:calc(var(--nav-h) + 1rem)}
-.hero{scroll-margin-top:0}
-.section-label{position:relative;padding-left:0}
-#results .section-label{color:var(--accent);font-weight:600}
-#actions .section-label{color:var(--amber);font-weight:600}
+    .mobile-menu-link {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+      padding: .85rem 1.5rem;
+      text-decoration: none;
+      color: rgba(255, 255, 255, .6);
+      transition: background .15s, color .15s;
+      border-left: 3px solid transparent
+    }
 
-/* Mobile nav refinements - premium feel */
-@media(max-width:768px){
-  .mobile-menu{border-radius:0 0 var(--r-lg) var(--r-lg);max-height:85vh;overflow-y:auto}
-  .mobile-menu-header{padding:1rem 1.5rem}
-  .mobile-menu-link{border-left:none;border-bottom:1px solid rgba(255,255,255,.05);padding:.9rem 1.5rem}
-  .mobile-menu-link:last-child{border-bottom:none}
-  .mobile-menu-link .mn-num{width:1.8rem;font-size:.58rem}
-  .mobile-menu-link .mn-name{font-size:.9rem}
-  .mobile-menu-link.active{border-left:none;background:rgba(26,122,122,.15)}
-  .mobile-menu-link.active .mn-name{color:#fff}
-  .mobile-menu-divider{margin:.5rem 1.5rem}
-  .mobile-menu-footer{padding:.75rem 1.5rem 1rem}
-}
+    .mobile-menu-link:active {
+      background: rgba(255, 255, 255, .05)
+    }
 
-@media(max-width:900px){
-  .results-hero{grid-template-columns:1fr;gap:.85rem}
-  .tier-grid{grid-template-columns:1fr}
-  .safety-box{grid-template-columns:1fr}
-  .bar-row{grid-template-columns:65px 1fr 50px}
-  .data-grid{grid-template-columns:repeat(2,1fr)}
-  #results .figure-grid{grid-template-columns:1fr;grid-template-areas:none}
-  #results .figure-card:nth-child(1),#results .figure-card:nth-child(2),#results .figure-card:nth-child(3),#results .figure-card:nth-child(4),#results .figure-card:nth-child(5){grid-area:auto}
-  .ack-team{grid-template-columns:repeat(2,1fr)}
-}
+    .mobile-menu-link.active {
+      color: #fff;
+      border-left-color: var(--accent-light);
+      background: rgba(26, 122, 122, .12)
+    }
 
-@media(max-width:768px){
-  :root{--spy:1.85rem}
-  .nav-links{display:none}
-  .nav-toggle{display:block;margin-left:auto}
-  .nav.scrolled .nav-inner{height:52px}
-  .hero{padding:4.5rem 1.25rem 1.75rem}
-  .hero h1{font-size:1.4rem;line-height:1.18}
-  .hero-decision{font-size:.88rem;margin-bottom:1.5rem}
-  .hero-meta{font-size:.74rem}
-  .eyebrow{font-size:.56rem;margin-bottom:1rem}
-  .hero-headline{flex-direction:column;gap:.7rem}
-  .hero-headline-card{min-width:auto;padding:1rem 1.1rem}
-  .hero-headline-card .hl-value{font-size:1.7rem}
-  .hero-stats{grid-template-columns:repeat(2,1fr)}
-  .hero-stat{padding:.6rem .75rem}
-  .hs-value{font-size:1rem}
-  .hs-label{font-size:.58rem}
-  .abstract-block{padding:1.1rem 1rem;border-radius:0 var(--r) var(--r) 0}
-  .abstract-sentence{padding-left:1.4rem;font-size:.8rem}
-  .section{padding:var(--spy) 1rem}
-  .section h2{font-size:1.25rem}
-  .section p{font-size:.84rem;line-height:1.7}
-  .data-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
-  .data-card{padding:.85rem .75rem}
-  .data-card .number{font-size:1.35rem}
-  .data-card .desc{font-size:.62rem}
-  .decision-summary{grid-template-columns:1fr;font-size:.78rem}
-  .decision-summary dt{margin-top:.4rem}
-  .pipeline{margin:1rem auto}
-  .pipeline-content{padding-bottom:1rem}
-  .pipeline-content strong{font-size:.78rem}
-  .pipeline-content span{font-size:.7rem}
-  .pipeline-hover{font-size:.7rem}
-  .method-facts{grid-template-columns:1fr;gap:.5rem}
-  .results-hero{margin:1rem 0}
-  .results-hero-card{padding:1.25rem 1rem}
-  .rh-value{font-size:2rem}
-  .rh-model{font-size:.56rem}
-  .comparison-bars{margin:.75rem 0}
-  .bar-row{grid-template-columns:55px 1fr 48px;gap:.4rem}
-  .bar-label{font-size:.64rem}
-  .bar-value{font-size:.66rem}
-  .bar-track{height:20px}
-  .figure-grid{grid-template-columns:1fr;max-width:100%}
-  #results .figure-grid{grid-template-columns:1fr;grid-template-areas:none}
-  #results .figure-card:nth-child(1),#results .figure-card:nth-child(2),#results .figure-card:nth-child(3),#results .figure-card:nth-child(4),#results .figure-card:nth-child(5){grid-area:auto}
-  .figure-card img{max-height:none}
-  .figure-card-body{padding:.7rem .85rem .85rem}
-  .comparison-bars{max-width:100%}
-  .tier-grid{grid-template-columns:1fr;gap:.7rem}
-  .tier-card{padding:1.1rem 1rem}
-  .limitation-list li{padding:.6rem .75rem .6rem 2.4rem;font-size:.78rem}
-  .limitation-list li::before{top:.75rem;left:.7rem}
-  .limitation-list li strong{font-size:.8rem}
-  .rec-list li{padding:.55rem 0;gap:.6rem}
-  .rec-body strong{font-size:.82rem}
-  .rec-body span{font-size:.76rem}
-  .evidence-chain{flex-direction:column;gap:.4rem}
-  .evidence-arrow{transform:rotate(90deg);justify-content:center}
-  .evidence-node{min-width:auto;width:100%}
-  .groupkfold-note{font-size:.74rem;padding:.85rem 1rem}
-  .safety-side{padding:1rem}
-  .safety-side li{font-size:.74rem}
-  .table-wrap{position:relative}
-  .table-wrap::after{content:'';position:absolute;top:0;right:0;bottom:0;width:24px;background:linear-gradient(to right,transparent,rgba(244,242,238,0.9));pointer-events:none;border-radius:0 var(--r) var(--r) 0;opacity:0;transition:opacity .2s}
-  .table-wrap.scroll-right::after{opacity:1}
-  .ack-team{grid-template-columns:1fr;max-width:100%}
-  .ack-person{font-size:.8rem}
-  .footer{padding:1.5rem 1rem}
-}
+    .mobile-menu-link .mn-num {
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 600;
+      color: var(--accent-light);
+      width: 1.5rem;
+      flex-shrink: 0;
+      letter-spacing: .02em
+    }
 
-@media(max-width:480px){
-  .hero{padding:4rem 1rem 1.5rem}
-  .hero h1{font-size:1.25rem}
-  .hero-headline-card .hl-value{font-size:1.5rem}
-  .hero-headline-card{padding:.85rem}
-  .hero-stats{grid-template-columns:1fr 1fr}
-  .hero-stat{padding:.55rem .65rem}
-  .data-grid{grid-template-columns:1fr}
-  .rh-value{font-size:1.7rem}
-  .results-hero-card{padding:1rem .85rem}
-  .bar-row{grid-template-columns:48px 1fr 40px}
-  .tier-card{padding:.9rem .85rem}
-  .ack-team{margin:.75rem 0}
-}
+    .mobile-menu-link .mn-name {
+      font-size: .88rem;
+      font-weight: 500;
+      letter-spacing: .01em
+    }
 
-@media(hover:none)and(pointer:coarse){
-  .pipeline-hover{max-height:80px;opacity:1}
-  .tier-action{max-height:60px;opacity:1}
-  .rec-signal{max-height:50px;opacity:1}
-  .hero-headline-card:hover{transform:none;box-shadow:none}
-  .data-card:hover{transform:none;box-shadow:var(--sh)}
-  .figure-card:hover{transform:none;box-shadow:var(--sh)}
-  .results-hero-card:hover{transform:none;box-shadow:var(--sh-md)}
-  .tier-card:hover{transform:none;box-shadow:var(--sh)}
-  .limitation-list li:hover{box-shadow:var(--sh-xs)}
-}
+    .mobile-menu-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, .08);
+      margin: .5rem 1.5rem
+    }
 
-@media(hover:none)and(pointer:coarse){
-  .nav-toggle{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
-  .mobile-menu-link{min-height:48px;padding:1rem 1.5rem}
-  .mobile-menu-close{min-width:44px;min-height:44px}
-  .lightbox-close{min-width:48px;min-height:48px}
-  .figure-card{min-height:44px}
-}
+    .mobile-menu-footer {
+      padding: .75rem 1.5rem 1.25rem
+    }
 
-/* ── Print / PDF ────────────────────────────────────── */
-@media print{
-  *,*::before,*::after{box-shadow:none!important}
-  body{font-size:11pt;line-height:1.55;color:#000;background:#fff}
-  .nav,.progress-bar,.back-to-top,.mobile-menu,.mobile-overlay,
-  .nav-toggle,.lightbox,.hero-stats,.hero-headline{display:none!important}
-  .hero{background:#fff!important;color:#000!important;padding:2.5rem 0 1.5rem;border-bottom:2pt solid #000}
-  .hero::before{display:none}
-  .eyebrow{color:#333!important;border-color:#999!important}
-  .hero h1{color:#000!important;font-size:20pt}
-  .hero-meta,.hero-decision{color:#333!important}
-  .hero-decision strong{color:#000}
-  .hero-headline-card{background:#f5f5f5!important;border:1px solid #ccc!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .hero-headline-card.primary{border-color:#000!important}
-  .hl-value{color:#000!important}
-  .hero-headline-card.primary .hl-value{color:#000!important}
-  .hl-label,.hl-sub,.hl-sub strong{color:#333!important}
-  .abstract-block{border-left-color:#000!important;background:#f9f9f9!important;padding:1rem 1.5rem;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .abstract-sentence{color:#333!important}
-  .abstract-sentence .num{color:#000!important}
-  .section{padding:1.5rem 0;page-break-inside:avoid}
-  .section-alt{background:#f5f5f5!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .section-label{color:#333!important}
-  .section h2{color:#000!important;font-size:16pt;page-break-after:avoid}
-  .section h3{color:#000!important;page-break-after:avoid}
-  .section p{color:#333!important}
-  .data-card{border:1px solid #ccc!important;background:#f9f9f9!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .data-card .number{color:#000!important}
-  .data-card .desc{color:#555!important}
-  .pipeline-node{background:#000!important;color:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .pipeline-connector{background:#999!important}
-  .pipeline-step:hover .pipeline-node{background:#000!important;transform:none}
-  .table-wrap{border:1px solid #ccc!important;box-shadow:none!important}
-  table{background:#fff!important}
-  thead{background:#000!important;color:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  td{color:#333!important;border-bottom:1px solid #ddd!important}
-  .highlight-row td{background:#f0f0f0!important;color:#000!important;font-weight:600;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .metric-highlight{color:#000!important}
-  .metric-secondary{color:#333!important}
-  .results-hero-card{border:1px solid #ccc!important;background:#f9f9f9!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .results-hero-card.primary{border-color:#000!important;border-width:1pt!important;background:#f0f0f0!important;box-shadow:none!important}
-  .rh-value{color:#000!important}
-  .results-hero-card.primary .rh-value{color:#000!important}
-  .rh-model{color:#333!important}
-  .results-hero-card.primary .rh-model{color:#000!important}
-  .rh-ci,.rh-metric{color:#555!important}
-  .vs-text{color:#333!important}
-  .vs-lift{color:#000!important}
-  .comparison-bars{max-width:100%}
-  .bar-fill{print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .bar-fill.lr{background:#333!important}
-  .bar-fill.rf{background:#666!important}
-  .bar-fill.baseline{background:#999!important}
-  .bar-fill.baserate{background:#bbb!important}
-  .figure-card{border:1px solid #ccc!important;box-shadow:none!important;page-break-inside:avoid}
-  .figure-card img{max-height:300px;object-fit:contain;filter:none!important}
-  #results .figure-grid{grid-template-columns:1fr!important;grid-template-areas:none!important}
-  #results .figure-card:nth-child(1),#results .figure-card:nth-child(2),#results .figure-card:nth-child(3),#results .figure-card:nth-child(4),#results .figure-card:nth-child(5){grid-area:auto!important}
-  .figure-card{border-top-color:#000!important}
-  .ack-team{grid-template-columns:1fr!important;max-width:100%!important}
-  .ack-person{background:#f9f9f9!important;border:1px solid #ccc!important;box-shadow:none!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .ack-person .ack-role{color:#333!important}
-  .safety-box{border:1px solid #ccc!important}
-  .safety-box .safety-side{background:#f9f9f9!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .safety-box .safety-side.does h4{color:#000!important}
-  .safety-box .safety-side.doesnot h4{color:#333!important}
-  .safety-box .safety-side.does li::before{background:#000!important}
-  .safety-box .safety-side.doesnot li::before{background:#666!important}
-  .tier-card{border:1px solid #ccc!important;background:#f9f9f9!important;box-shadow:none!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .tier-card.review{border-color:#000!important}
-  .tier-card.review::before{background:#000!important}
-  .tier-card.monitor::before{background:#666!important}
-  .tier-card.deprioritise::before{background:#999!important}
-  .tier-card.review .tier-label,.tier-card.review .tier-count{color:#000!important}
-  .tier-card.monitor .tier-label{color:#333!important}
-  .tier-card.deprioritise .tier-label{color:#555!important}
-  .tier-count{color:#000!important}
-  .tier-desc{color:#333!important}
-  .limitation-list li{background:#f9f9f9!important;border:1px solid #ccc!important;box-shadow:none!important;color:#333!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .limitation-list li::before{color:#000!important}
-  .limitation-list li strong{color:#000!important}
-  .rec-list li{border-bottom-color:#ddd!important}
-  .rec-num{background:#f0f0f0!important;color:#000!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .rec-body strong{color:#000!important}
-  .rec-body span{color:#333!important}
-  .rec-signal{display:none!important}
-  .evidence-node{border:1px solid #ccc!important;background:#f9f9f9!important;box-shadow:none!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .evidence-node .week{color:#000!important}
-  .evidence-node .title{color:#000!important}
-  .evidence-node .desc{color:#555!important}
-  .evidence-arrow{color:#333!important}
-  .groupkfold-note{background:#f9f9f9!important;border:1px solid #ccc!important;box-shadow:none!important;color:#333!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .groupkfold-note strong{color:#000!important}
-  .ack-person{border-bottom-color:#ddd!important}
-  .ack-person strong{color:#000!important}
-  .ack-person .ack-role{color:#555!important}
-  .footer{background:#fff!important;color:#333!important;border-top:2pt solid #000;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .footer a{color:#000!important;text-decoration:underline}
-  .method-fact dt{color:#333!important}
-  .method-fact dd{color:#333!important}
-  a{color:#000!important;text-decoration:underline}
-  code{background:#f0f0f0!important;padding:1pt 3pt;font-size:9pt;font-family:'Courier New',monospace}
-  .pipeline-hover,.tier-action,.rec-signal{display:none!important}
-  @page{margin:2cm 2.5cm;size:A4}
-  @page:first{margin-top:1.5cm}
-}
-</style>
+    .mobile-menu-footer a {
+      display: block;
+      padding: .6rem .85rem;
+      font-size: .78rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, .45);
+      text-decoration: none;
+      border-radius: 6px;
+      transition: color .2s, background .2s
+    }
+
+    .mobile-menu-footer a:hover,
+    .mobile-menu-footer a:active {
+      color: var(--accent-light);
+      background: rgba(255, 255, 255, .05)
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity .5s ease, transform .5s ease
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    .hero {
+      padding: 5rem 2rem 2.5rem;
+      background: linear-gradient(170deg, #0B2233 0%, #0F2B3C 35%, #152E40 70%, #1A3D52 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(26, 122, 122, 0.12) 0%, transparent 65%);
+      border-radius: 50%;
+      pointer-events: none
+    }
+
+    .hero-inner {
+      max-width: var(--mw);
+      margin: 0 auto;
+      position: relative;
+      z-index: 1
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: .65rem;
+      font-weight: 500;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent-light);
+      margin-bottom: 1.25rem;
+      display: inline-block;
+      padding: .3rem .85rem;
+      border: 1px solid rgba(42, 168, 168, 0.25);
+      border-radius: 20px
+    }
+
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(1.85rem, 4.2vw, 3rem);
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -.025em;
+      max-width: 780px;
+      margin-bottom: .5rem
+    }
+
+    .hero-meta {
+      font-size: .8rem;
+      color: rgba(255, 255, 255, .6);
+      margin-bottom: 1.5rem;
+      font-weight: 400
+    }
+
+    .hero-decision {
+      font-size: 1rem;
+      color: rgba(255, 255, 255, .82);
+      max-width: 620px;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+      font-weight: 400
+    }
+
+    .hero-decision strong {
+      color: #fff;
+      font-weight: 600
+    }
+
+    .hero-headline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: stretch;
+      margin-bottom: 1.5rem
+    }
+
+    .hero-headline-card {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: var(--r);
+      padding: 1.1rem 1.4rem;
+      min-width: 170px;
+      flex: 1;
+      transition: transform .2s, box-shadow .2s
+    }
+
+    .hero-headline-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .15)
+    }
+
+    .hero-headline-card.primary {
+      background: rgba(26, 122, 122, 0.18);
+      border-color: rgba(42, 168, 168, 0.3)
+    }
+
+    .hl-value {
+      font-family: var(--serif);
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1
+    }
+
+    .hero-headline-card.primary .hl-value {
+      color: var(--accent-light)
+    }
+
+    .hl-label {
+      font-size: .68rem;
+      color: rgba(255, 255, 255, .6);
+      margin-top: .3rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 500
+    }
+
+    .hl-sub {
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .6);
+      margin-top: .4rem;
+      line-height: 1.5
+    }
+
+    .hl-sub strong {
+      color: rgba(255, 255, 255, .85)
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: rgba(255, 255, 255, .08);
+      border-radius: var(--r);
+      overflow: hidden;
+      max-width: 700px;
+      margin: 1.25rem auto 0
+    }
+
+    .hero-stat {
+      background: rgba(255, 255, 255, .03);
+      padding: .75rem 1rem;
+      text-align: center
+    }
+
+    .hs-value {
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.1
+    }
+
+    .hs-label {
+      font-size: .62rem;
+      color: rgba(255, 255, 255, .55);
+      margin-top: .2rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 500
+    }
+
+    .abstract-block {
+      background: var(--bg-card);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--r-lg) var(--r-lg) 0;
+      padding: 1.1rem 1.75rem;
+      margin: 1.5rem auto 0;
+      max-width: 780px;
+      box-shadow: var(--sh)
+    }
+
+    .abstract-sentence {
+      position: relative;
+      padding-left: 1.8rem;
+      margin-bottom: .5rem;
+      color: var(--text-s);
+      line-height: 1.7;
+      font-size: .85rem
+    }
+
+    .abstract-sentence:last-child {
+      margin-bottom: 0
+    }
+
+    .abstract-sentence .num {
+      position: absolute;
+      left: 0;
+      top: .05rem;
+      font-family: var(--mono);
+      font-size: .62rem;
+      font-weight: 600;
+      color: var(--accent);
+      width: 1.4rem
+    }
+
+    .section {
+      padding: var(--spy) 2rem;
+      max-width: var(--mw);
+      margin: 0 auto;
+      position: relative
+    }
+
+    .section+.section {
+      margin-top: 0
+    }
+
+    .section-alt {
+      background: var(--bg-alt);
+      border-top: 1px solid var(--border-l)
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 500;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .35rem;
+      display: inline-block;
+      padding: .2rem .65rem;
+      border-radius: 4px;
+      background: rgba(26, 122, 122, 0.06);
+      border-left: 3px solid var(--accent)
+    }
+
+    .section h2 {
+      font-family: var(--serif);
+      font-size: clamp(1.4rem, 2.8vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.2;
+      color: var(--primary);
+      margin-bottom: .75rem;
+      padding-bottom: .5rem;
+      border-bottom: 1px solid var(--border-l)
+    }
+
+    .section h3 {
+      font-family: var(--sans);
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: .35rem;
+      margin-top: 1.25rem;
+      position: relative;
+      padding-left: .85rem
+    }
+
+    .section h3::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: .15rem;
+      bottom: .15rem;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 2px
+    }
+
+    .section h3:first-child {
+      margin-top: 0
+    }
+
+    .section h3:first-child::before {
+      display: none
+    }
+
+    .section h3:first-child {
+      padding-left: 0
+    }
+
+    .section p {
+      color: var(--text-s);
+      line-height: 1.78;
+      margin-bottom: .6rem;
+      max-width: 720px
+    }
+
+    .decision-summary {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .5rem 1.25rem;
+      margin: .75rem 0;
+      max-width: 520px;
+      font-size: .82rem
+    }
+
+    .decision-summary dt {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: .68rem;
+      padding-top: .15rem
+    }
+
+    .decision-summary dd {
+      color: var(--text-s);
+      line-height: 1.55
+    }
+
+    .safety-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin: .75rem 0;
+      box-shadow: var(--sh-xs)
+    }
+
+    .safety-side {
+      background: var(--bg-card);
+      padding: 1rem 1.25rem
+    }
+
+    .safety-side h4 {
+      font-family: var(--mono);
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: .4rem
+    }
+
+    .safety-side.does h4 {
+      color: var(--green)
+    }
+
+    .safety-side.doesnot h4 {
+      color: var(--red)
+    }
+
+    .safety-side ul {
+      list-style: none;
+      margin: 0;
+      padding: 0
+    }
+
+    .safety-side li {
+      font-size: .78rem;
+      color: var(--text-s);
+      line-height: 1.5;
+      padding: .2rem 0 .2rem 1rem;
+      position: relative
+    }
+
+    .safety-side.does li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: .55rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green)
+    }
+
+    .safety-side.doesnot li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: .55rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--red)
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .5rem;
+      margin: .75rem 0
+    }
+
+    .data-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: .85rem;
+      text-align: center;
+      box-shadow: var(--sh-xs);
+      transition: box-shadow .2s, transform .2s
+    }
+
+    .data-card:hover {
+      box-shadow: var(--sh-md);
+      transform: translateY(-2px)
+    }
+
+    .data-card .number {
+      font-family: var(--serif);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.1
+    }
+
+    .data-card .desc {
+      font-size: .68rem;
+      color: var(--text-m);
+      margin-top: .2rem;
+      text-transform: uppercase;
+      letter-spacing: .04em
+    }
+
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 520px;
+      margin: .75rem auto
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: .85rem;
+      position: relative;
+      cursor: default
+    }
+
+    .pipeline-node {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+      transition: transform .2s, background .2s
+    }
+
+    .pipeline-step:hover .pipeline-node {
+      transform: scale(1.12);
+      background: var(--primary)
+    }
+
+    .pipeline-content {
+      padding: .15rem 0 1rem 0;
+      flex: 1
+    }
+
+    .pipeline-content strong {
+      display: block;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: .05rem
+    }
+
+    .pipeline-content span {
+      font-size: .74rem;
+      color: var(--text-m)
+    }
+
+    .pipeline-hover {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease, opacity .2s ease;
+      opacity: 0;
+      font-size: .74rem;
+      color: var(--accent);
+      margin-top: .2rem;
+      line-height: 1.5
+    }
+
+    .pipeline-step:hover .pipeline-hover {
+      max-height: 80px;
+      opacity: 1
+    }
+
+    .pipeline-connector {
+      position: absolute;
+      left: 13px;
+      top: 28px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border)
+    }
+
+    .pipeline-step:last-child .pipeline-connector {
+      display: none
+    }
+
+    .method-facts {
+      margin: .75rem 0;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      background: var(--bg-card);
+      box-shadow: var(--sh-xs)
+    }
+
+    .mf-row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 0;
+      border-bottom: 1px solid var(--border-l)
+    }
+
+    .mf-row:last-child {
+      border-bottom: none
+    }
+
+    .mf-row dt {
+      padding: .7rem 1rem;
+      font-family: var(--mono);
+      font-size: .62rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      background: var(--bg-alt);
+      display: flex;
+      align-items: center;
+      border-right: 1px solid var(--border-l)
+    }
+
+    .mf-row dd {
+      padding: .7rem 1rem;
+      font-size: .78rem;
+      color: var(--text-s);
+      line-height: 1.55;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .35rem
+    }
+
+    .mf-chip {
+      display: inline-block;
+      padding: .2rem .6rem;
+      font-size: .7rem;
+      font-weight: 500;
+      color: var(--primary);
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      white-space: nowrap
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: .7rem 0;
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      box-shadow: var(--sh-xs);
+      -webkit-overflow-scrolling: touch
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      min-width: 400px
+    }
+
+    thead {
+      background: var(--primary);
+      color: #fff
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2
+    }
+
+    th {
+      padding: .5rem .75rem;
+      font-size: .68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      text-align: left;
+      white-space: nowrap;
+      font-feature-settings: "smcp";
+      -webkit-font-feature-settings: "smcp"
+    }
+
+    td {
+      padding: .4rem .75rem;
+      font-size: .8rem;
+      border-bottom: 1px solid var(--border-l);
+      color: var(--text-s);
+      transition: background .15s
+    }
+
+    tr:last-child td {
+      border-bottom: none
+    }
+
+    tr:hover td {
+      background: rgba(26, 122, 122, 0.03)
+    }
+
+    .highlight-row td {
+      background: rgba(26, 122, 122, 0.04);
+      font-weight: 500;
+      color: var(--text)
+    }
+
+    .metric-highlight {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--accent)
+    }
+
+    .metric-secondary {
+      font-family: var(--mono);
+      color: var(--text-m)
+    }
+
+    .table-caption {
+      font-size: .72rem;
+      color: var(--text-m);
+      margin-top: .5rem;
+      font-style: italic;
+      max-width: 720px
+    }
+
+    .results-hero {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1.25rem;
+      align-items: center;
+      margin: 1.25rem 0;
+      max-width: 750px
+    }
+
+    .results-hero-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 1.75rem 2rem;
+      text-align: center;
+      box-shadow: var(--sh-md);
+      transition: transform .25s ease, box-shadow .25s ease;
+      position: relative
+    }
+
+    .results-hero-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--sh-lg)
+    }
+
+    .results-hero-card.primary {
+      border-color: var(--accent);
+      border-width: 2px;
+      box-shadow: var(--sh-lg), 0 0 0 1px rgba(26, 122, 122, 0.1);
+      background: linear-gradient(180deg, rgba(26, 122, 122, 0.04) 0%, rgba(26, 122, 122, 0.01) 40%, var(--bg-card) 100%)
+    }
+
+    .rh-model {
+      font-family: var(--mono);
+      font-size: .58rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-m);
+      margin-bottom: .4rem
+    }
+
+    .results-hero-card.primary .rh-model {
+      color: var(--accent)
+    }
+
+    .rh-value {
+      font-family: var(--serif);
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1
+    }
+
+    .results-hero-card.primary .rh-value {
+      color: var(--accent)
+    }
+
+    .rh-ci {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--text-m);
+      margin-top: .25rem
+    }
+
+    .rh-metric {
+      font-size: .74rem;
+      color: var(--text-s);
+      margin-top: .4rem
+    }
+
+    .results-hero-vs {
+      text-align: center
+    }
+
+    .vs-text {
+      font-family: var(--serif);
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--text-m)
+    }
+
+    .vs-lift {
+      font-family: var(--mono);
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--green);
+      margin-top: .2rem
+    }
+
+    .vs-baserate {
+      font-size: .68rem;
+      color: var(--text-m);
+      margin-top: .4rem;
+      line-height: 1.4
+    }
+
+    .comparison-bars {
+      margin: .75rem 0;
+      max-width: 560px
+    }
+
+    .comparison-bars h3 {
+      margin-top: 0;
+      margin-bottom: .75rem
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 55px;
+      align-items: center;
+      gap: .65rem;
+      margin-bottom: .5rem
+    }
+
+    .bar-label {
+      font-family: var(--mono);
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text-s);
+      text-align: right
+    }
+
+    .bar-label.primary-label {
+      color: var(--accent)
+    }
+
+    .bar-track {
+      height: 24px;
+      background: var(--border-l);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .8s ease
+    }
+
+    .bar-fill.lr {
+      background: linear-gradient(90deg, var(--accent), var(--accent-light))
+    }
+
+    .bar-fill.rf {
+      background: linear-gradient(90deg, #5A7A8A, #7A9AAA)
+    }
+
+    .bar-fill.baseline {
+      background: linear-gradient(90deg, #A0A0A0, #B8B8B8)
+    }
+
+    .bar-fill.baserate {
+      background: linear-gradient(90deg, #C8C8C8, #D8D8D8)
+    }
+
+    .bar-value {
+      font-family: var(--mono);
+      font-size: .74rem;
+      font-weight: 600;
+      color: var(--text)
+    }
+
+    .bar-value.primary-value {
+      color: var(--accent)
+    }
+
+    .bar-legend {
+      display: flex;
+      gap: 1.25rem;
+      margin-top: .4rem;
+      flex-wrap: wrap
+    }
+
+    .bar-legend span {
+      font-size: .68rem;
+      color: var(--text-m);
+      display: flex;
+      align-items: center;
+      gap: .3rem
+    }
+
+    .bar-legend span::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0
+    }
+
+    .bar-legend .leg-lr::before {
+      background: var(--accent)
+    }
+
+    .bar-legend .leg-rf::before {
+      background: #5A7A8A
+    }
+
+    .bar-legend .leg-bl::before {
+      background: #A0A0A0
+    }
+
+    .bar-legend .leg-br::before {
+      background: #C8C8C8
+    }
+
+    .figure-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin: .75rem 0
+    }
+
+    .figure-grid-primary .figure-card {
+      grid-column: 1/-1
+    }
+
+    .figure-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--sh);
+      transition: box-shadow .25s, transform .2s;
+      cursor: pointer
+    }
+
+    .figure-card:hover {
+      box-shadow: var(--sh-md);
+      transform: translateY(-2px)
+    }
+
+    .figure-card img {
+      width: 100%;
+      height: auto;
+      display: block
+    }
+
+    .figure-card-body {
+      padding: .85rem 1.1rem 1rem
+    }
+
+    .figure-card-body h4 {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: .2rem
+    }
+
+    .figure-card-body p {
+      font-size: .74rem;
+      color: var(--text-m);
+      line-height: 1.55;
+      margin-bottom: .3rem
+    }
+
+    .figure-card-body .takeaway {
+      font-size: .72rem;
+      font-weight: 500;
+      color: var(--accent);
+      padding-top: .3rem;
+      border-top: 1px solid var(--border-l);
+      margin-bottom: 0
+    }
+
+    /* ── Chart section: unified card style + 2-col grid ── */
+    #results .figure-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "action confidence"
+        "archetype queue"
+        "client client";
+      gap: .75rem;
+    }
+
+    #results .figure-grid-primary .figure-card {
+      grid-column: auto
+    }
+
+    #results .figure-card:nth-child(1) {
+      grid-area: action
+    }
+
+    #results .figure-card:nth-child(2) {
+      grid-area: archetype
+    }
+
+    #results .figure-card:nth-child(3) {
+      grid-area: queue
+    }
+
+    #results .figure-card:nth-child(4) {
+      grid-area: client
+    }
+
+    #results .figure-card:nth-child(5) {
+      grid-area: confidence
+    }
+
+    #results .figure-card {
+      border-top: 3px solid var(--accent);
+    }
+
+    #results .figure-card img {
+      filter: saturate(0.4) hue-rotate(12deg) brightness(1.03);
+      background: var(--bg-alt);
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(15, 43, 60, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+      backdrop-filter: blur(8px)
+    }
+
+    .lightbox.open {
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 85vh;
+      border-radius: var(--r);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .4)
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.8rem;
+      cursor: pointer;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background .2s
+    }
+
+    .lightbox-close:hover {
+      background: rgba(255, 255, 255, 0.15)
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, .85);
+      font-size: .85rem;
+      text-align: center;
+      max-width: 600px
+    }
+
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .5rem;
+      margin: .75rem 0
+    }
+
+    .tier-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 1.1rem 1.1rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--sh-xs);
+      transition: box-shadow .2s, transform .2s
+    }
+
+    .tier-card:hover {
+      box-shadow: var(--sh-md);
+      transform: translateY(-2px)
+    }
+
+    .tier-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px
+    }
+
+    .tier-card.review::before {
+      background: var(--accent)
+    }
+
+    .tier-card.monitor::before {
+      background: var(--amber)
+    }
+
+    .tier-card.deprioritise::before {
+      background: var(--text-m)
+    }
+
+    .tier-card.review {
+      border-color: rgba(26, 122, 122, 0.25);
+      box-shadow: var(--sh), 0 0 0 1px rgba(26, 122, 122, 0.06)
+    }
+
+    .tier-card.review::before {
+      height: 5px
+    }
+
+    .tier-label {
+      font-family: var(--mono);
+      font-size: .58rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: .35rem
+    }
+
+    .tier-card.review .tier-label {
+      color: var(--accent)
+    }
+
+    .tier-card.monitor .tier-label {
+      color: var(--amber)
+    }
+
+    .tier-card.deprioritise .tier-label {
+      color: var(--text-m)
+    }
+
+    .tier-count {
+      font-family: var(--serif);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.1
+    }
+
+    .tier-card.review .tier-count {
+      color: var(--accent)
+    }
+
+    .tier-pct {
+      font-size: .7rem;
+      color: var(--text-m);
+      margin-bottom: .5rem
+    }
+
+    .tier-desc {
+      font-size: .78rem;
+      color: var(--text-s);
+      line-height: 1.5
+    }
+
+    .tier-action {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease, opacity .2s ease;
+      opacity: 0;
+      font-size: .72rem;
+      color: var(--accent);
+      margin-top: .4rem;
+      line-height: 1.5;
+      font-weight: 500
+    }
+
+    .tier-card:hover .tier-action {
+      max-height: 60px;
+      opacity: 1
+    }
+
+    .limitation-list {
+      list-style: none;
+      counter-reset: lim;
+      max-width: 780px;
+      margin: .75rem 0
+    }
+
+    .limitation-list li {
+      counter-increment: lim;
+      position: relative;
+      padding: .7rem .85rem .7rem 2.8rem;
+      margin-bottom: .4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      font-size: .8rem;
+      color: var(--text-s);
+      line-height: 1.6;
+      box-shadow: var(--sh-xs);
+      transition: box-shadow .2s
+    }
+
+    .limitation-list li:hover {
+      box-shadow: var(--sh)
+    }
+
+    .limitation-list li::before {
+      content: counter(lim);
+      position: absolute;
+      left: .9rem;
+      top: .85rem;
+      font-family: var(--mono);
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--accent);
+      width: 1.2rem;
+      text-align: center
+    }
+
+    .limitation-list li strong {
+      color: var(--text);
+      display: inline;
+      margin-bottom: 0;
+      font-size: .82rem
+    }
+
+    .rec-list {
+      list-style: none;
+      max-width: 780px;
+      margin: .75rem 0
+    }
+
+    .rec-list li {
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+      padding: .65rem 0;
+      border-bottom: 1px solid var(--border-l)
+    }
+
+    .rec-list li:last-child {
+      border-bottom: none
+    }
+
+    .rec-num {
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(26, 122, 122, 0.08);
+      border-radius: 6px;
+      padding: .25rem .5rem;
+      flex-shrink: 0;
+      margin-top: .1rem
+    }
+
+    .rec-body strong {
+      display: block;
+      font-size: .85rem;
+      color: var(--primary);
+      margin-bottom: .1rem
+    }
+
+    .rec-body span {
+      font-size: .78rem;
+      color: var(--text-s);
+      line-height: 1.55
+    }
+
+    .rec-signal {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease, opacity .2s ease;
+      opacity: 0;
+      font-size: .72rem;
+      color: var(--accent);
+      margin-top: .25rem;
+      line-height: 1.5
+    }
+
+    .rec-list li:hover .rec-signal {
+      max-height: 50px;
+      opacity: 1
+    }
+
+    .evidence-chain {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin: .75rem 0;
+      align-items: center
+    }
+
+    .evidence-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: .55rem .8rem;
+      flex: 1;
+      min-width: 100px;
+      box-shadow: var(--sh-xs);
+      text-align: center
+    }
+
+    .evidence-node .week {
+      font-family: var(--mono);
+      font-size: .56rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: .1rem
+    }
+
+    .evidence-node .title {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: .05rem
+    }
+
+    .evidence-node .desc {
+      font-size: .62rem;
+      color: var(--text-m)
+    }
+
+    .evidence-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--text-m);
+      font-size: .8rem;
+      flex-shrink: 0
+    }
+
+    .groupkfold-note {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: .85rem 1.1rem;
+      margin: .6rem 0;
+      font-size: .78rem;
+      color: var(--text-s);
+      line-height: 1.6;
+      box-shadow: var(--sh-xs)
+    }
+
+    .groupkfold-note strong {
+      color: var(--text)
+    }
+
+    .ack-team {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .6rem;
+      margin: .75rem 0;
+      max-width: 720px
+    }
+
+    .ack-person {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: .85rem 1rem;
+      text-align: center;
+      box-shadow: var(--sh-xs);
+      transition: box-shadow .2s
+    }
+
+    .ack-person:hover {
+      box-shadow: var(--sh)
+    }
+
+    .ack-person:last-child {
+      border-bottom: none
+    }
+
+    .ack-person strong {
+      color: var(--text);
+      font-weight: 600;
+      font-size: .88rem;
+      display: block;
+      margin-bottom: .2rem
+    }
+
+    .ack-person .ack-role {
+      font-family: var(--mono);
+      font-size: .58rem;
+      font-weight: 500;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-top: .15rem
+    }
+
+    .footer {
+      background: var(--primary);
+      color: rgba(255, 255, 255, .6);
+      padding: 2rem 2rem;
+      text-align: center;
+      font-size: .74rem;
+      line-height: 1.8
+    }
+
+    .footer a {
+      color: var(--accent-light);
+      text-decoration: none
+    }
+
+    .footer a:hover {
+      text-decoration: underline
+    }
+
+    /* Back to top */
+    .back-to-top {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 1050;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--sh-md);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease, background .2s
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto
+    }
+
+    .back-to-top:hover {
+      background: var(--accent)
+    }
+
+    .back-to-top:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px
+    }
+
+    .back-to-top svg {
+      width: 20px;
+      height: 20px
+    }
+
+    @media(max-width:768px) {
+      .back-to-top {
+        bottom: 1.25rem;
+        right: 1.25rem;
+        width: 40px;
+        height: 40px
+      }
+    }
+
+    /* Figure width constraints */
+    .figure-grid {
+      max-width: 100%
+    }
+
+    #results .figure-grid {
+      max-width: 100%
+    }
+
+    .figure-card img {
+      max-height: 420px;
+      object-fit: contain;
+      background: var(--bg-alt)
+    }
+
+    #results .figure-card img {
+      max-height: 320px
+    }
+
+    .comparison-bars {
+      max-width: 520px
+    }
+
+    /* Results hero refinements */
+    .results-hero {
+      max-width: 720px
+    }
+
+    .results-hero-card.primary {
+      border-color: var(--accent);
+      border-width: 2px;
+      position: relative
+    }
+
+    .results-hero-card.primary::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: calc(var(--r-lg) + 3px);
+      border: 1px solid rgba(26, 122, 122, 0.15);
+      pointer-events: none
+    }
+
+    /* Section hierarchy enhancements */
+    .section {
+      position: relative;
+      scroll-margin-top: calc(var(--nav-h) + 1rem)
+    }
+
+    .hero {
+      scroll-margin-top: 0
+    }
+
+    .section-label {
+      position: relative;
+      padding-left: 0
+    }
+
+    #results .section-label {
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    #actions .section-label {
+      color: var(--amber);
+      font-weight: 600
+    }
+
+    /* Mobile nav refinements - premium feel */
+    @media(max-width:768px) {
+      .mobile-menu {
+        border-radius: 0 0 var(--r-lg) var(--r-lg);
+        max-height: 85vh;
+        overflow-y: auto
+      }
+
+      .mobile-menu-header {
+        padding: 1rem 1.5rem
+      }
+
+      .mobile-menu-link {
+        border-left: none;
+        border-bottom: 1px solid rgba(255, 255, 255, .05);
+        padding: .9rem 1.5rem
+      }
+
+      .mobile-menu-link:last-child {
+        border-bottom: none
+      }
+
+      .mobile-menu-link .mn-num {
+        width: 1.8rem;
+        font-size: .58rem
+      }
+
+      .mobile-menu-link .mn-name {
+        font-size: .9rem
+      }
+
+      .mobile-menu-link.active {
+        border-left: none;
+        background: rgba(26, 122, 122, .15)
+      }
+
+      .mobile-menu-link.active .mn-name {
+        color: #fff
+      }
+
+      .mobile-menu-divider {
+        margin: .5rem 1.5rem
+      }
+
+      .mobile-menu-footer {
+        padding: .75rem 1.5rem 1rem
+      }
+    }
+
+    @media(max-width:900px) {
+      .results-hero {
+        grid-template-columns: 1fr;
+        gap: .85rem
+      }
+
+      .tier-grid {
+        grid-template-columns: 1fr
+      }
+
+      .safety-box {
+        grid-template-columns: 1fr
+      }
+
+      .bar-row {
+        grid-template-columns: 65px 1fr 50px
+      }
+
+      .data-grid {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      #results .figure-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas: none
+      }
+
+      #results .figure-card:nth-child(1),
+      #results .figure-card:nth-child(2),
+      #results .figure-card:nth-child(3),
+      #results .figure-card:nth-child(4),
+      #results .figure-card:nth-child(5) {
+        grid-area: auto
+      }
+
+      .ack-team {
+        grid-template-columns: repeat(2, 1fr)
+      }
+    }
+
+    @media(max-width:768px) {
+      :root {
+        --spy: 1.85rem
+      }
+
+      .nav-links {
+        display: none
+      }
+
+      .nav-toggle {
+        display: block
+      }
+
+      .nav.scrolled .nav-inner {
+        height: 52px
+      }
+
+      .hero {
+        padding: 4.5rem 1.25rem 1.75rem
+      }
+
+      .hero h1 {
+        font-size: 1.4rem;
+        line-height: 1.18
+      }
+
+      .hero-decision {
+        font-size: .88rem;
+        margin-bottom: 1.5rem
+      }
+
+      .hero-meta {
+        font-size: .74rem
+      }
+
+      .eyebrow {
+        font-size: .56rem;
+        margin-bottom: 1rem
+      }
+
+      .hero-headline {
+        flex-direction: column;
+        gap: .7rem
+      }
+
+      .hero-headline-card {
+        min-width: auto;
+        padding: 1rem 1.1rem
+      }
+
+      .hero-headline-card .hl-value {
+        font-size: 1.7rem
+      }
+
+      .hero-stats {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .hero-stat {
+        padding: .6rem .75rem
+      }
+
+      .hs-value {
+        font-size: 1rem
+      }
+
+      .hs-label {
+        font-size: .58rem
+      }
+
+      .abstract-block {
+        padding: 1.1rem 1rem;
+        border-radius: 0 var(--r) var(--r) 0
+      }
+
+      .abstract-sentence {
+        padding-left: 1.4rem;
+        font-size: .8rem
+      }
+
+      .section {
+        padding: var(--spy) 1rem
+      }
+
+      .section h2 {
+        font-size: 1.25rem
+      }
+
+      .section p {
+        font-size: .84rem;
+        line-height: 1.7
+      }
+
+      .data-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: .6rem
+      }
+
+      .data-card {
+        padding: .85rem .75rem
+      }
+
+      .data-card .number {
+        font-size: 1.35rem
+      }
+
+      .data-card .desc {
+        font-size: .62rem
+      }
+
+      .decision-summary {
+        grid-template-columns: 1fr;
+        font-size: .78rem
+      }
+
+      .decision-summary dt {
+        margin-top: .4rem
+      }
+
+      .pipeline {
+        margin: 1rem auto
+      }
+
+      .pipeline-content {
+        padding-bottom: 1rem
+      }
+
+      .pipeline-content strong {
+        font-size: .78rem
+      }
+
+      .pipeline-content span {
+        font-size: .7rem
+      }
+
+      .pipeline-hover {
+        font-size: .7rem
+      }
+
+      .mf-row {
+        grid-template-columns: 1fr
+      }
+
+      .mf-row dt {
+        border-right: none;
+        border-bottom: 1px solid var(--border-l);
+        padding: .55rem .85rem .35rem
+      }
+
+      .mf-row dd {
+        padding: .4rem .85rem .7rem
+      }
+
+      .results-hero {
+        margin: 1rem 0
+      }
+
+      .results-hero-card {
+        padding: 1.25rem 1rem
+      }
+
+      .rh-value {
+        font-size: 2rem
+      }
+
+      .rh-model {
+        font-size: .56rem
+      }
+
+      .comparison-bars {
+        margin: .75rem 0
+      }
+
+      .bar-row {
+        grid-template-columns: 55px 1fr 48px;
+        gap: .4rem
+      }
+
+      .bar-label {
+        font-size: .64rem
+      }
+
+      .bar-value {
+        font-size: .66rem
+      }
+
+      .bar-track {
+        height: 20px
+      }
+
+      .figure-grid {
+        grid-template-columns: 1fr;
+        max-width: 100%
+      }
+
+      #results .figure-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas: none
+      }
+
+      #results .figure-card:nth-child(1),
+      #results .figure-card:nth-child(2),
+      #results .figure-card:nth-child(3),
+      #results .figure-card:nth-child(4),
+      #results .figure-card:nth-child(5) {
+        grid-area: auto
+      }
+
+      .figure-card img {
+        max-height: none
+      }
+
+      .figure-card-body {
+        padding: .7rem .85rem .85rem
+      }
+
+      .comparison-bars {
+        max-width: 100%
+      }
+
+      .tier-grid {
+        grid-template-columns: 1fr;
+        gap: .7rem
+      }
+
+      .tier-card {
+        padding: 1.1rem 1rem
+      }
+
+      .limitation-list li {
+        padding: .6rem .75rem .6rem 2.4rem;
+        font-size: .78rem
+      }
+
+      .limitation-list li::before {
+        top: .75rem;
+        left: .7rem
+      }
+
+      .limitation-list li strong {
+        font-size: .8rem
+      }
+
+      .rec-list li {
+        padding: .55rem 0;
+        gap: .6rem
+      }
+
+      .rec-body strong {
+        font-size: .82rem
+      }
+
+      .rec-body span {
+        font-size: .76rem
+      }
+
+      .evidence-chain {
+        flex-direction: column;
+        gap: .4rem
+      }
+
+      .evidence-arrow {
+        transform: rotate(90deg);
+        justify-content: center
+      }
+
+      .evidence-node {
+        min-width: auto;
+        width: 100%
+      }
+
+      .groupkfold-note {
+        font-size: .74rem;
+        padding: .85rem 1rem
+      }
+
+      .safety-side {
+        padding: 1rem
+      }
+
+      .safety-side li {
+        font-size: .74rem
+      }
+
+      .table-wrap {
+        position: relative
+      }
+
+      .table-wrap::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 24px;
+        background: linear-gradient(to right, transparent, rgba(244, 242, 238, 0.9));
+        pointer-events: none;
+        border-radius: 0 var(--r) var(--r) 0;
+        opacity: 0;
+        transition: opacity .2s
+      }
+
+      .table-wrap.scroll-right::after {
+        opacity: 1
+      }
+
+      .ack-team {
+        grid-template-columns: 1fr;
+        max-width: 100%
+      }
+
+      .ack-person {
+        font-size: .8rem
+      }
+
+      .footer {
+        padding: 1.5rem 1rem
+      }
+    }
+
+    @media(max-width:480px) {
+      .hero {
+        padding: 4rem 1rem 1.5rem
+      }
+
+      .hero h1 {
+        font-size: 1.25rem
+      }
+
+      .hero-headline-card .hl-value {
+        font-size: 1.5rem
+      }
+
+      .hero-headline-card {
+        padding: .85rem
+      }
+
+      .hero-stats {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .hero-stat {
+        padding: .55rem .65rem
+      }
+
+      .data-grid {
+        grid-template-columns: 1fr
+      }
+
+      .rh-value {
+        font-size: 1.7rem
+      }
+
+      .results-hero-card {
+        padding: 1rem .85rem
+      }
+
+      .bar-row {
+        grid-template-columns: 48px 1fr 40px
+      }
+
+      .tier-card {
+        padding: .9rem .85rem
+      }
+
+      .ack-team {
+        margin: .75rem 0
+      }
+    }
+
+    @media(hover:none)and(pointer:coarse) {
+      .pipeline-hover {
+        max-height: 80px;
+        opacity: 1
+      }
+
+      .tier-action {
+        max-height: 60px;
+        opacity: 1
+      }
+
+      .rec-signal {
+        max-height: 50px;
+        opacity: 1
+      }
+
+      .hero-headline-card:hover {
+        transform: none;
+        box-shadow: none
+      }
+
+      .data-card:hover {
+        transform: none;
+        box-shadow: var(--sh)
+      }
+
+      .figure-card:hover {
+        transform: none;
+        box-shadow: var(--sh)
+      }
+
+      .results-hero-card:hover {
+        transform: none;
+        box-shadow: var(--sh-md)
+      }
+
+      .tier-card:hover {
+        transform: none;
+        box-shadow: var(--sh)
+      }
+
+      .limitation-list li:hover {
+        box-shadow: var(--sh-xs)
+      }
+    }
+
+    @media(hover:none)and(pointer:coarse) {
+      .nav-toggle {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center
+      }
+
+      .mobile-menu-link {
+        min-height: 48px;
+        padding: 1rem 1.5rem
+      }
+
+      .mobile-menu-close {
+        min-width: 44px;
+        min-height: 44px
+      }
+
+      .lightbox-close {
+        min-width: 48px;
+        min-height: 48px
+      }
+
+      .figure-card {
+        min-height: 44px
+      }
+    }
+
+    /* ── Print / PDF ────────────────────────────────────── */
+    @media print {
+
+      *,
+      *::before,
+      *::after {
+        box-shadow: none !important
+      }
+
+      body {
+        font-size: 11pt;
+        line-height: 1.55;
+        color: #000;
+        background: #fff
+      }
+
+      .nav,
+      .progress-bar,
+      .back-to-top,
+      .mobile-menu,
+      .mobile-overlay,
+      .nav-toggle,
+      .lightbox,
+      .hero-stats,
+      .hero-headline {
+        display: none !important
+      }
+
+      .hero {
+        background: #fff !important;
+        color: #000 !important;
+        padding: 2.5rem 0 1.5rem;
+        border-bottom: 2pt solid #000
+      }
+
+      .hero::before {
+        display: none
+      }
+
+      .eyebrow {
+        color: #333 !important;
+        border-color: #999 !important
+      }
+
+      .hero h1 {
+        color: #000 !important;
+        font-size: 20pt
+      }
+
+      .hero-meta,
+      .hero-decision {
+        color: #333 !important
+      }
+
+      .hero-decision strong {
+        color: #000
+      }
+
+      .hero-headline-card {
+        background: #f5f5f5 !important;
+        border: 1px solid #ccc !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .hero-headline-card.primary {
+        border-color: #000 !important
+      }
+
+      .hl-value {
+        color: #000 !important
+      }
+
+      .hero-headline-card.primary .hl-value {
+        color: #000 !important
+      }
+
+      .hl-label,
+      .hl-sub,
+      .hl-sub strong {
+        color: #333 !important
+      }
+
+      .abstract-block {
+        border-left-color: #000 !important;
+        background: #f9f9f9 !important;
+        padding: 1rem 1.5rem;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .abstract-sentence {
+        color: #333 !important
+      }
+
+      .abstract-sentence .num {
+        color: #000 !important
+      }
+
+      .section {
+        padding: 1.5rem 0;
+        page-break-inside: avoid
+      }
+
+      .section-alt {
+        background: #f5f5f5 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .section-label {
+        color: #333 !important
+      }
+
+      .section h2 {
+        color: #000 !important;
+        font-size: 16pt;
+        page-break-after: avoid
+      }
+
+      .section h3 {
+        color: #000 !important;
+        page-break-after: avoid
+      }
+
+      .section p {
+        color: #333 !important
+      }
+
+      .data-card {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .data-card .number {
+        color: #000 !important
+      }
+
+      .data-card .desc {
+        color: #555 !important
+      }
+
+      .pipeline-node {
+        background: #000 !important;
+        color: #fff !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .pipeline-connector {
+        background: #999 !important
+      }
+
+      .pipeline-step:hover .pipeline-node {
+        background: #000 !important;
+        transform: none
+      }
+
+      .table-wrap {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important
+      }
+
+      table {
+        background: #fff !important
+      }
+
+      thead {
+        background: #000 !important;
+        color: #fff !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      td {
+        color: #333 !important;
+        border-bottom: 1px solid #ddd !important
+      }
+
+      .highlight-row td {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        font-weight: 600;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .metric-highlight {
+        color: #000 !important
+      }
+
+      .metric-secondary {
+        color: #333 !important
+      }
+
+      .results-hero-card {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .results-hero-card.primary {
+        border-color: #000 !important;
+        border-width: 1pt !important;
+        background: #f0f0f0 !important;
+        box-shadow: none !important
+      }
+
+      .rh-value {
+        color: #000 !important
+      }
+
+      .results-hero-card.primary .rh-value {
+        color: #000 !important
+      }
+
+      .rh-model {
+        color: #333 !important
+      }
+
+      .results-hero-card.primary .rh-model {
+        color: #000 !important
+      }
+
+      .rh-ci,
+      .rh-metric {
+        color: #555 !important
+      }
+
+      .vs-text {
+        color: #333 !important
+      }
+
+      .vs-lift {
+        color: #000 !important
+      }
+
+      .comparison-bars {
+        max-width: 100%
+      }
+
+      .bar-fill {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .bar-fill.lr {
+        background: #333 !important
+      }
+
+      .bar-fill.rf {
+        background: #666 !important
+      }
+
+      .bar-fill.baseline {
+        background: #999 !important
+      }
+
+      .bar-fill.baserate {
+        background: #bbb !important
+      }
+
+      .figure-card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        page-break-inside: avoid
+      }
+
+      .figure-card img {
+        max-height: 300px;
+        object-fit: contain;
+        filter: none !important
+      }
+
+      #results .figure-grid {
+        grid-template-columns: 1fr !important;
+        grid-template-areas: none !important
+      }
+
+      #results .figure-card:nth-child(1),
+      #results .figure-card:nth-child(2),
+      #results .figure-card:nth-child(3),
+      #results .figure-card:nth-child(4),
+      #results .figure-card:nth-child(5) {
+        grid-area: auto !important
+      }
+
+      .figure-card {
+        border-top-color: #000 !important
+      }
+
+      .ack-team {
+        grid-template-columns: 1fr !important;
+        max-width: 100% !important
+      }
+
+      .ack-person {
+        background: #f9f9f9 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .ack-person .ack-role {
+        color: #333 !important
+      }
+
+      .safety-box {
+        border: 1px solid #ccc !important
+      }
+
+      .safety-box .safety-side {
+        background: #f9f9f9 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .safety-box .safety-side.does h4 {
+        color: #000 !important
+      }
+
+      .safety-box .safety-side.doesnot h4 {
+        color: #333 !important
+      }
+
+      .safety-box .safety-side.does li::before {
+        background: #000 !important
+      }
+
+      .safety-box .safety-side.doesnot li::before {
+        background: #666 !important
+      }
+
+      .tier-card {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        box-shadow: none !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .tier-card.review {
+        border-color: #000 !important
+      }
+
+      .tier-card.review::before {
+        background: #000 !important
+      }
+
+      .tier-card.monitor::before {
+        background: #666 !important
+      }
+
+      .tier-card.deprioritise::before {
+        background: #999 !important
+      }
+
+      .tier-card.review .tier-label,
+      .tier-card.review .tier-count {
+        color: #000 !important
+      }
+
+      .tier-card.monitor .tier-label {
+        color: #333 !important
+      }
+
+      .tier-card.deprioritise .tier-label {
+        color: #555 !important
+      }
+
+      .tier-count {
+        color: #000 !important
+      }
+
+      .tier-desc {
+        color: #333 !important
+      }
+
+      .limitation-list li {
+        background: #f9f9f9 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        color: #333 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .limitation-list li::before {
+        color: #000 !important
+      }
+
+      .limitation-list li strong {
+        color: #000 !important
+      }
+
+      .rec-list li {
+        border-bottom-color: #ddd !important
+      }
+
+      .rec-num {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .rec-body strong {
+        color: #000 !important
+      }
+
+      .rec-body span {
+        color: #333 !important
+      }
+
+      .rec-signal {
+        display: none !important
+      }
+
+      .evidence-node {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        box-shadow: none !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .evidence-node .week {
+        color: #000 !important
+      }
+
+      .evidence-node .title {
+        color: #000 !important
+      }
+
+      .evidence-node .desc {
+        color: #555 !important
+      }
+
+      .evidence-arrow {
+        color: #333 !important
+      }
+
+      .groupkfold-note {
+        background: #f9f9f9 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        color: #333 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .groupkfold-note strong {
+        color: #000 !important
+      }
+
+      .method-facts {
+        background: #f9f9f9 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .ack-person {
+        border-bottom-color: #ddd !important
+      }
+
+      .ack-person strong {
+        color: #000 !important
+      }
+
+      .ack-person .ack-role {
+        color: #555 !important
+      }
+
+      .footer {
+        background: #fff !important;
+        color: #333 !important;
+        border-top: 2pt solid #000;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .footer a {
+        color: #000 !important;
+        text-decoration: underline
+      }
+
+      .mf-row dt {
+        color: #333 !important;
+        background: #f5f5f5 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      .mf-row dd {
+        color: #333 !important
+      }
+
+      .mf-chip {
+        border: 1px solid #ccc !important;
+        background: #f5f5f5 !important;
+        color: #333 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact
+      }
+
+      a {
+        color: #000 !important;
+        text-decoration: underline
+      }
+
+      code {
+        background: #f0f0f0 !important;
+        padding: 1pt 3pt;
+        font-size: 9pt;
+        font-family: 'Courier New', monospace
+      }
+
+      .pipeline-hover,
+      .tier-action,
+      .rec-signal {
+        display: none !important
+      }
+
+      @page {
+        margin: 2cm 2.5cm;
+        size: A4
+      }
+
+      @page: first {
+        margin-top: 1.5cm
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="progress-bar" id="progressBar"></div>
+  <div class="progress-bar" id="progressBar"></div>
 
-<nav class="nav" id="nav" role="navigation" aria-label="Section navigation">
-  <div class="nav-inner">
-    <div class="nav-brand">FlyRank Capstone</div>
-    <button class="nav-toggle" id="navToggle" aria-label="Open navigation menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-    </button>
-    <ul class="nav-links" id="navLinks">
-      <li><a href="#hero">Abstract</a></li>
-      <li><a href="#problem">Problem</a></li>
-      <li><a href="#data">Data</a></li>
-      <li><a href="#method">Method</a></li>
-      <li><a href="#results">Results</a></li>
-      <li><a href="#limits">Limits</a></li>
-      <li><a href="#actions">Actions</a></li>
-      <li><a href="#repro">Repro</a></li>
-      <li><a href="#acknowledgments">Credit</a></li>
-    </ul>
-  </div>
-</nav>
-
-<div class="mobile-overlay" id="mobileOverlay"></div>
-<div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Navigation menu" aria-hidden="true">
-  <div class="mobile-menu-header">
-    <span class="mobile-menu-title">Capstone Navigation</span>
-    <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close navigation menu">&times;</button>
-  </div>
-  <nav class="mobile-menu-nav" aria-label="Section navigation">
-    <a class="mobile-menu-link" href="#hero" data-section="hero"><span class="mn-num">01</span><span class="mn-name">Abstract</span></a>
-    <a class="mobile-menu-link" href="#problem" data-section="problem"><span class="mn-num">02</span><span class="mn-name">Problem</span></a>
-    <a class="mobile-menu-link" href="#data" data-section="data"><span class="mn-num">03</span><span class="mn-name">Data</span></a>
-    <a class="mobile-menu-link" href="#method" data-section="method"><span class="mn-num">04</span><span class="mn-name">Methodology</span></a>
-    <a class="mobile-menu-link" href="#results" data-section="results"><span class="mn-num">05</span><span class="mn-name">Results</span></a>
-    <a class="mobile-menu-link" href="#limits" data-section="limits"><span class="mn-num">06</span><span class="mn-name">Limitations</span></a>
-    <a class="mobile-menu-link" href="#actions" data-section="actions"><span class="mn-num">07</span><span class="mn-name">Recommendations</span></a>
-    <a class="mobile-menu-link" href="#repro" data-section="repro"><span class="mn-num">08</span><span class="mn-name">Reproducibility</span></a>
-    <div class="mobile-menu-divider"></div>
-    <a class="mobile-menu-link" href="#acknowledgments" data-section="acknowledgments"><span class="mn-num">09</span><span class="mn-name">Credit</span></a>
+  <nav class="nav" id="nav" role="navigation" aria-label="Section navigation">
+    <div class="nav-inner">
+      <div class="nav-brand">FlyRank Capstone</div>
+      <button class="nav-toggle" id="navToggle" aria-label="Open navigation menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18" />
+        </svg>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#hero">Abstract</a></li>
+        <li><a href="#problem">Problem</a></li>
+        <li><a href="#data">Data</a></li>
+        <li><a href="#method">Method</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#limits">Limits</a></li>
+        <li><a href="#actions">Actions</a></li>
+        <li><a href="#repro">Repro</a></li>
+        <li><a href="#acknowledgments">Credit</a></li>
+      </ul>
+    </div>
   </nav>
-  <div class="mobile-menu-footer">
-    <a href="#hero">Ranking Pages for Content Review</a>
-  </div>
-</div>
 
-<header class="hero" id="hero">
-  <div class="hero-inner">
-    <div class="eyebrow">FlyRank ML Internship · Capstone</div>
-    <h1>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility Signals</h1>
-    <p class="hero-meta">Yousef Ahmed · Machine Learning Engineering · FlyRank AI Internship · August 2026</p>
-    <p class="hero-decision"><strong>Which pages should a human SEO reviewer inspect first?</strong> A ranked review queue built from observed search-visibility patterns across a 331,437-page portfolio.</p>
-
-    <div class="hero-headline">
-      <div class="hero-headline-card primary">
-        <div class="hl-value">0.971</div>
-        <div class="hl-label">LR P@1000</div>
-        <div class="hl-sub"><strong>Logistic Regression</strong> — primary model</div>
-      </div>
-      <div class="hero-headline-card">
-        <div class="hl-value">0.828</div>
-        <div class="hl-label">Baseline P@1000</div>
-        <div class="hl-sub"><strong>Rule-based</strong> — transparent baseline</div>
-      </div>
-      <div class="hero-headline-card">
-        <div class="hl-value" style="color:var(--green)">≈1.17×</div>
-        <div class="hl-label">Lift</div>
-        <div class="hl-sub">LR over baseline<br>Base rate: <strong>32.6%</strong></div>
-      </div>
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Navigation menu" aria-hidden="true">
+    <div class="mobile-menu-header">
+      <span class="mobile-menu-title">Capstone Navigation</span>
+      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close navigation menu">&times;</button>
     </div>
-
-    <div class="hero-stats">
-      <div class="hero-stat"><div class="hs-value">331,437</div><div class="hs-label">Pages</div></div>
-      <div class="hero-stat"><div class="hs-value">55</div><div class="hs-label">Clients</div></div>
-      <div class="hero-stat"><div class="hs-value">Mar 2026</div><div class="hs-label">Window</div></div>
-      <div class="hero-stat"><div class="hs-value">5-Fold</div><div class="hs-label">Grouped CV</div></div>
-    </div>
-
-    <div class="abstract-block">
-      <div class="abstract-sentence"><span class="num">1</span> SEO and content teams cannot manually inspect every page in a large inventory, creating a need for systematic prioritization.</div>
-      <div class="abstract-sentence"><span class="num">2</span> This study builds a decision-support system on 331,437 aggregated pages across 55 clients, using two March 2026 search-visibility features: impression volume and average search position.</div>
-      <div class="abstract-sentence"><span class="num">3</span> A Logistic Regression validated with client-grouped cross-validation achieves P@1000 of 0.971 ± 0.030 vs 0.828 ± 0.119 baseline (≈1.17× lift).</div>
-      <div class="abstract-sentence"><span class="num">4</span> Output is a ranked review queue with reason codes and behavioral archetypes — a decision-support tool, not an autonomous optimizer.</div>
-      <div class="abstract-sentence"><span class="num">5</span> No causal claims are made; findings are directional and specific to this portfolio and time window.</div>
-    </div>
-  </div>
-</header>
-
-<section class="section section-alt reveal" id="problem">
-  <div class="section-label">02 — Introduction</div>
-  <h2>The Decision Problem</h2>
-
-  <dl class="decision-summary">
-    <dt>Decision</dt><dd>Which pages should a human SEO reviewer inspect first?</dd>
-    <dt>Unit</dt><dd>Page × client.</dd>
-    <dt>Output</dt><dd>Priority score / ranked queue.</dd>
-    <dt>Metric</dt><dd>Precision@K.</dd>
-  </dl>
-
-  <p>A portfolio of hundreds of thousands of pages cannot be reviewed at uniform depth. This is a <strong>triage problem</strong>: given limited review capacity, which pages deserve human inspection first? A ranked review queue scored by a model identifies where human review is most likely to be productive — not an automation problem, since editorial judgment remains essential.</p>
-
-  <div class="safety-box">
-    <div class="safety-side does">
-      <h4>DOES</h4>
-      <ul>
-        <li>Rank pages by observed search-visibility patterns</li>
-        <li>Produce a prioritized queue for human inspection</li>
-        <li>Provide decision-support with reason codes</li>
-      </ul>
-    </div>
-    <div class="safety-side doesnot">
-      <h4>DOES NOT</h4>
-      <ul>
-        <li>Prove causal impact of content changes</li>
-        <li>Predict Google's algorithm or ranking factors</li>
-        <li>Guarantee content-refresh success</li>
-      </ul>
-    </div>
-  </div>
-  <p style="font-size:.78rem;color:var(--text-m)">FlyRank ML internship. All client names, domains, URLs, and private queries removed.</p>
-</section>
-
-<section class="section reveal" id="data">
-  <div class="section-label">03 — Data</div>
-  <h2>The Dataset</h2>
-
-  <div class="data-grid">
-    <div class="data-card"><div class="number">331,437</div><div class="desc">Pages</div></div>
-    <div class="data-card"><div class="number">55</div><div class="desc">Clients</div></div>
-    <div class="data-card"><div class="number">March 2026</div><div class="desc">Window</div></div>
-    <div class="data-card"><div class="number">32.6%</div><div class="desc">Proxy Positive Rate</div></div>
-  </div>
-
-  <p>We used March 2026 warehouse data aggregated to page × client from ~9.8M daily fact rows. Client identifiers were used only for grouped validation and were never model features.</p>
-
-  <h3>Features</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Feature</th><th>Description</th><th>Rationale</th></tr></thead>
-      <tbody>
-        <tr><td><code>march_gsc_impressions</code></td><td>Total GSC impressions across March 2026</td><td>Primary signal of search demand</td></tr>
-        <tr><td><code>march_gsc_avg_position</code></td><td>Mean ranking position (days with pos ≤ 0 excluded)</td><td>Deeper positions have different opportunity profiles; independent of label</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="table-caption">Both features observable at decision time. No label-derived, future, or product-decision features used.</p>
-
-  <h3>Exclusions</h3>
-  <p><strong>Client identifiers, URLs, queries:</strong> removed during pseudonymization. <strong>Product-decision flags</strong> (<code>health_score</code>, <code>priority_score</code>): excluded so the model learns from signals, not product decisions. <strong>Zero-impression rows:</strong> no search presence. <strong>GA4-only features:</strong> ~4% coverage, excluded to avoid noise.</p>
-
-  <div class="safety-box">
-    <div class="safety-side does">
-      <h4>Data Safety</h4>
-      <ul>
-        <li>All client names, domains, URLs, queries pseudonymized</li>
-        <li>No private data on this page</li>
-        <li>Client identifiers used only for grouped validation</li>
-      </ul>
-    </div>
-    <div class="safety-side doesnot">
-      <h4>Never Used</h4>
-      <ul>
-        <li>No product-decision flags as features</li>
-        <li>No future-window data</li>
-        <li>No GA4-only features (4% coverage)</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="section section-alt reveal" id="method">
-  <div class="section-label">04 — Methodology</div>
-  <h2>Methodology</h2>
-
-  <div class="pipeline">
-    <div class="pipeline-step">
-      <div class="pipeline-node">1</div>
-      <div class="pipeline-content">
-        <strong>Research Question</strong>
-        <span>Which pages should a human reviewer inspect first?</span>
-        <div class="pipeline-hover">Defines the scope: prioritization, not prediction or optimization.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">2</div>
-      <div class="pipeline-content">
-        <strong>March 2026 Data</strong>
-        <span>9.8M daily rows → 331,437 page-level records</span>
-        <div class="pipeline-hover">Single-month cross-section. No longitudinal or seasonal signal captured.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">3</div>
-      <div class="pipeline-content">
-        <strong>Page-Level Features</strong>
-        <span>Impressions + average search position</span>
-        <div class="pipeline-hover">Two observable signals. No label-derived, future, or product-decision features.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">4</div>
-      <div class="pipeline-content">
-        <strong>Transparent Baseline</strong>
-        <span>Rule-based position + impression scoring</span>
-        <div class="pipeline-hover">What a human analyst might build without ML. Fixed thresholds, fully interpretable.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">5</div>
-      <div class="pipeline-content">
-        <strong>Logistic Regression</strong>
-        <span>Primary model — calibrated probability scores</span>
-        <div class="pipeline-hover">scikit-learn LogisticRegression, max_iter=1000, StandardScaler fitted on training fold only.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">6</div>
-      <div class="pipeline-content">
-        <strong>5-Fold Grouped Validation</strong>
-        <span>GroupKFold by client — zero client overlap</span>
-        <div class="pipeline-hover">Each fold: ~44 clients train, ~11 test. Tests generalization to unseen clients, not just unseen pages.</div>
-      </div>
-      <div class="pipeline-connector"></div>
-    </div>
-    <div class="pipeline-step">
-      <div class="pipeline-node">7</div>
-      <div class="pipeline-content">
-        <strong>Ranked Review Queue</strong>
-        <span>Top 1,000 pages for human inspection</span>
-        <div class="pipeline-hover">The final output: an ordered list scored by LR probability, ready for human triage.</div>
-      </div>
+    <nav class="mobile-menu-nav" aria-label="Section navigation">
+      <a class="mobile-menu-link" href="#hero" data-section="hero"><span class="mn-num">01</span><span
+          class="mn-name">Abstract</span></a>
+      <a class="mobile-menu-link" href="#problem" data-section="problem"><span class="mn-num">02</span><span
+          class="mn-name">Problem</span></a>
+      <a class="mobile-menu-link" href="#data" data-section="data"><span class="mn-num">03</span><span
+          class="mn-name">Data</span></a>
+      <a class="mobile-menu-link" href="#method" data-section="method"><span class="mn-num">04</span><span
+          class="mn-name">Methodology</span></a>
+      <a class="mobile-menu-link" href="#results" data-section="results"><span class="mn-num">05</span><span
+          class="mn-name">Results</span></a>
+      <a class="mobile-menu-link" href="#limits" data-section="limits"><span class="mn-num">06</span><span
+          class="mn-name">Limitations</span></a>
+      <a class="mobile-menu-link" href="#actions" data-section="actions"><span class="mn-num">07</span><span
+          class="mn-name">Recommendations</span></a>
+      <a class="mobile-menu-link" href="#repro" data-section="repro"><span class="mn-num">08</span><span
+          class="mn-name">Reproducibility</span></a>
+      <div class="mobile-menu-divider"></div>
+      <a class="mobile-menu-link" href="#acknowledgments" data-section="acknowledgments"><span
+          class="mn-num">09</span><span class="mn-name">Credit</span></a>
+    </nav>
+    <div class="mobile-menu-footer">
+      <a href="#hero">Ranking Pages for Content Review</a>
     </div>
   </div>
 
-  <dl class="method-facts">
-    <dt>Features</dt><dd>March GSC impressions, March GSC clicks, March GSC CTR, March GA4 sessions, March scroll events</dd>
-    <dt>Validation</dt><dd>5-fold GroupKFold grouped by client_hash_id across 55 clients</dd>
-    <dt>Primary Model</dt><dd>Logistic Regression</dd>
-    <dt>Secondary Model</dt><dd>Random Forest (100 estimators)</dd>
-    <dt>Baseline</dt><dd>Position + impression rule</dd>
-    <dt>Label</dt><dd><code>opportunity_proxy = (impressions &gt; 0) &amp; (clicks == 0)</code>. Base rate: 32.6%. This is a proxy, not a future prediction target.</dd>
-  </dl>
+  <header class="hero" id="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">FlyRank ML Internship · Capstone</div>
+      <h1>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility Signals</h1>
+      <p class="hero-meta">Yousef Koura · Machine Learning Engineering · FlyRank AI Internship · August 2026</p>
+      <p class="hero-decision"><strong>Which pages should a human SEO reviewer inspect first?</strong> A ranked review
+        queue built from observed search-visibility patterns across a 331,437-page portfolio.</p>
 
-  <h3>Leakage Audit</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Check</th><th>Result</th></tr></thead>
-      <tbody>
-        <tr><td>Future-window inputs</td><td><span style="color:var(--green);font-weight:600">PASS</span> — March 2026 only</td></tr>
-        <tr><td>Label-derived features</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Clicks and CTR excluded</td></tr>
-        <tr><td>Product flags</td><td><span style="color:var(--green);font-weight:600">PASS</span> — No product-decision flags</td></tr>
-        <tr><td>Target-derived fields</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Trend fields excluded</td></tr>
-        <tr><td>Train/test separation</td><td><span style="color:var(--green);font-weight:600">PASS</span> — GroupKFold, zero overlap</td></tr>
-        <tr><td>Preprocessing</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Scaler fitted on train only</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
+      <div class="hero-headline">
+        <div class="hero-headline-card primary">
+          <div class="hl-value">0.971</div>
+          <div class="hl-label">LR P@1000</div>
+          <div class="hl-sub"><strong>Logistic Regression</strong> — primary model</div>
+        </div>
+        <div class="hero-headline-card">
+          <div class="hl-value">0.828</div>
+          <div class="hl-label">Baseline P@1000</div>
+          <div class="hl-sub"><strong>Rule-based</strong> — transparent baseline</div>
+        </div>
+        <div class="hero-headline-card">
+          <div class="hl-value" style="color:var(--green)">≈1.17×</div>
+          <div class="hl-label">Lift</div>
+          <div class="hl-sub">LR over baseline<br>Base rate: <strong>32.6%</strong></div>
+        </div>
+      </div>
 
-<section class="section reveal" id="results" style="background:linear-gradient(180deg,rgba(26,122,122,0.02) 0%,var(--bg) 40%);border-bottom:1px solid var(--border-l)">
-  <div class="section-label">05 — Results</div>
-  <h2>Results</h2>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hs-value">331,437</div>
+          <div class="hs-label">Pages</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hs-value">55</div>
+          <div class="hs-label">Clients</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hs-value">Mar 2026</div>
+          <div class="hs-label">Window</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hs-value">5-Fold</div>
+          <div class="hs-label">Grouped CV</div>
+        </div>
+      </div>
 
-  <div class="results-hero">
-    <div class="results-hero-card primary">
-      <div class="rh-model">Logistic Regression · Primary</div>
-      <div class="rh-value">0.971</div>
-      <div class="rh-ci">± 0.030</div>
-      <div class="rh-metric">Precision@1000</div>
-    </div>
-    <div class="results-hero-vs">
-      <div class="vs-text">vs</div>
-      <div class="vs-lift">≈1.17× lift</div>
-      <div class="vs-baserate">Base rate: 32.6%</div>
-    </div>
-    <div class="results-hero-card">
-      <div class="rh-model">Baseline · Rule-based</div>
-      <div class="rh-value">0.828</div>
-      <div class="rh-ci">± 0.119</div>
-      <div class="rh-metric">Precision@1000</div>
-    </div>
-  </div>
-
-  <p>Under client-grouped validation, Logistic Regression achieved P@1000 = 0.971 ± 0.030 versus 0.828 ± 0.119 for the baseline (~1.17×).</p>
-
-  <div class="comparison-bars">
-    <h3>Precision@1000 Comparison</h3>
-    <div class="bar-row">
-      <div class="bar-label primary-label">LR</div>
-      <div class="bar-track"><div class="bar-fill lr" style="width:97.1%"></div></div>
-      <div class="bar-value primary-value">0.971</div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label">RF</div>
-      <div class="bar-track"><div class="bar-fill rf" style="width:95.3%"></div></div>
-      <div class="bar-value">0.953</div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label">Baseline</div>
-      <div class="bar-track"><div class="bar-fill baseline" style="width:82.8%"></div></div>
-      <div class="bar-value">0.828</div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label">Base rate</div>
-      <div class="bar-track"><div class="bar-fill baserate" style="width:32.6%"></div></div>
-      <div class="bar-value">0.326</div>
-    </div>
-    <div class="bar-legend">
-      <span class="leg-lr">Primary (LR)</span>
-      <span class="leg-rf">Secondary (RF)</span>
-      <span class="leg-bl">Rule-based baseline</span>
-      <span class="leg-br">Base rate</span>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Method</th><th>P@100</th><th>P@500</th><th>P@1000</th><th>P@5000</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Baseline (rule-based)</td>
-          <td class="metric-secondary">0.746 ± 0.105</td>
-          <td class="metric-secondary">0.821 ± 0.124</td>
-          <td class="metric-secondary">0.828 ± 0.119</td>
-          <td class="metric-secondary">0.702 ± 0.156</td>
-        </tr>
-        <tr class="highlight-row">
-          <td><strong>Logistic Regression</strong> <span style="font-size:.6rem;color:var(--accent);font-weight:600">PRIMARY</span></td>
-          <td class="metric-highlight">0.992 ± 0.016</td>
-          <td class="metric-highlight">0.982 ± 0.025</td>
-          <td class="metric-highlight">0.971 ± 0.030</td>
-          <td class="metric-highlight">0.910 ± 0.053</td>
-        </tr>
-        <tr>
-          <td>Random Forest <span style="font-size:.6rem;color:var(--text-m);font-weight:500">SECONDARY</span></td>
-          <td class="metric-secondary">0.964 ± 0.024</td>
-          <td class="metric-secondary">0.951 ± 0.014</td>
-          <td class="metric-secondary">0.953 ± 0.011</td>
-          <td class="metric-secondary">0.948 ± 0.016</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="table-caption">Base rate: 32.6%. All metrics out-of-client-fold (5-fold GroupKFold, grouped by client_hash_id).</p>
-
-  <p><strong>LR P@100 = 0.992:</strong> ~99 of its top 100 ranked pages are proxy-positive. The RF achieves 0.953 ± 0.011 at P@1000 with lower variance, but LR was independently audited (Week 6) and used for the Week 7 action queue — making it the <strong>primary decision-support model</strong>.</p>
-
-  <h3>Queue Overlap</h3>
-  <p>LR and baseline top-1000 queues share only <strong>6 pages (0.6%)</strong>. The two methods identify fundamentally different pages as highest priority.</p>
-
-  <h3>Feature Importance</h3>
-  <p><strong>LR coefficients (scaled):</strong> <code>march_gsc_impressions</code> = −4.912 (negative due to fillna(0); within impressions>0 subset, higher impressions raise probability); <code>march_gsc_avg_position</code> = +2.815 (deeper positions increase predicted probability).</p>
-
-  <h3>Visual Results</h3>
-  <div class="figure-grid figure-grid-primary">
-    <div class="figure-card" data-fig="figures/action_distribution.png" data-cap="Action tier distribution: REVIEW, MONITOR, DEPRIORITISE">
-      <img src="figures/action_distribution.png" alt="Action tier distribution" loading="lazy">
-      <div class="figure-card-body">
-        <h4>Action Tier Distribution</h4>
-        <p>REVIEW (1,000), MONITOR (174,304), DEPRIORITISE (156,133).</p>
-        <div class="takeaway">The model concentrates highest-priority pages into a manageable 1,000-page batch.</div>
+      <div class="abstract-block">
+        <div class="abstract-sentence"><span class="num">1</span> SEO and content teams cannot manually inspect every
+          page in a large inventory, creating a need for systematic prioritization.</div>
+        <div class="abstract-sentence"><span class="num">2</span> This study builds a decision-support system on 331,437
+          aggregated pages across 55 clients, using two March 2026 search-visibility features: impression volume and
+          average search position.</div>
+        <div class="abstract-sentence"><span class="num">3</span> A Logistic Regression validated with client-grouped
+          cross-validation achieves P@1000 of 0.971 ± 0.030 vs 0.828 ± 0.119 baseline (≈1.17× lift).</div>
+        <div class="abstract-sentence"><span class="num">4</span> Output is a ranked review queue with reason codes and
+          behavioral archetypes — a decision-support tool, not an autonomous optimizer.</div>
+        <div class="abstract-sentence"><span class="num">5</span> No causal claims are made; findings are directional
+          and specific to this portfolio and time window.</div>
       </div>
     </div>
-    <div class="figure-card" data-fig="figures/archetype_breakdown.png" data-cap="Behavioral archetype breakdown across 331,437 pages">
-      <img src="figures/archetype_breakdown.png" alt="Archetype breakdown" loading="lazy">
-      <div class="figure-card-body">
-        <h4>Archetype Breakdown</h4>
-        <p>Ghost (46.7%), Already performing (29.2%), Hidden gems (16.9%), Emerging (6.6%).</p>
-        <div class="takeaway">Nearly half the portfolio has no search visibility; hidden gems are the primary review opportunity.</div>
+  </header>
+
+  <section class="section section-alt reveal" id="problem">
+    <div class="section-label">02 — Introduction</div>
+    <h2>The Decision Problem</h2>
+
+    <dl class="decision-summary">
+      <dt>Decision</dt>
+      <dd>Which pages should a human SEO reviewer inspect first?</dd>
+      <dt>Unit</dt>
+      <dd>Page × client.</dd>
+      <dt>Output</dt>
+      <dd>Priority score / ranked queue.</dd>
+      <dt>Metric</dt>
+      <dd>Precision@K.</dd>
+    </dl>
+
+    <p>A portfolio of hundreds of thousands of pages cannot be reviewed at uniform depth. This is a <strong>triage
+        problem</strong>: given limited review capacity, which pages deserve human inspection first? A ranked review
+      queue scored by a model identifies where human review is most likely to be productive — not an automation problem,
+      since editorial judgment remains essential.</p>
+
+    <div class="safety-box">
+      <div class="safety-side does">
+        <h4>DOES</h4>
+        <ul>
+          <li>Rank pages by observed search-visibility patterns</li>
+          <li>Produce a prioritized queue for human inspection</li>
+          <li>Provide decision-support with reason codes</li>
+        </ul>
+      </div>
+      <div class="safety-side doesnot">
+        <h4>DOES NOT</h4>
+        <ul>
+          <li>Prove causal impact of content changes</li>
+          <li>Predict Google's algorithm or ranking factors</li>
+          <li>Guarantee content-refresh success</li>
+        </ul>
       </div>
     </div>
-    <div class="figure-card" data-fig="figures/queue_vs_baseline_overlap.png" data-cap="LR vs baseline queue overlap">
-      <img src="figures/queue_vs_baseline_overlap.png" alt="Queue overlap" loading="lazy">
-      <div class="figure-card-body">
-        <h4>Queue vs. Baseline Overlap</h4>
-        <p>Only 6 shared pages (0.6%). 994 unique to each method.</p>
-        <div class="takeaway">Learned ranking captures patterns that fixed thresholds miss.</div>
+    <p style="font-size:.78rem;color:var(--text-m)">FlyRank ML internship. All client names, domains, URLs, and private
+      queries removed.</p>
+  </section>
+
+  <section class="section reveal" id="data">
+    <div class="section-label">03 — Data</div>
+    <h2>The Dataset</h2>
+
+    <div class="data-grid">
+      <div class="data-card">
+        <div class="number">331,437</div>
+        <div class="desc">Pages</div>
+      </div>
+      <div class="data-card">
+        <div class="number">55</div>
+        <div class="desc">Clients</div>
+      </div>
+      <div class="data-card">
+        <div class="number">March 2026</div>
+        <div class="desc">Window</div>
+      </div>
+      <div class="data-card">
+        <div class="number">32.6%</div>
+        <div class="desc">Proxy Positive Rate</div>
       </div>
     </div>
-    <div class="figure-card" data-fig="figures/client_concentration.png" data-cap="Client distribution in top-1000 queue">
-      <img src="figures/client_concentration.png" alt="Client concentration" loading="lazy">
-      <div class="figure-card-body">
-        <h4>Client Concentration</h4>
-        <p>One client contributes 50% of the top-1000 queue.</p>
-        <div class="takeaway">Operational consideration: queue deployment should account for client concentration.</div>
+
+    <p>We used March 2026 warehouse data aggregated to page × client from ~9.8M daily fact rows. Client identifiers were
+      used only for grouped validation and were never model features.</p>
+
+    <h3>Features</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Description</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>march_gsc_impressions</code></td>
+            <td>Total GSC impressions across March 2026</td>
+            <td>Primary signal of search demand</td>
+          </tr>
+          <tr>
+            <td><code>march_gsc_avg_position</code></td>
+            <td>Mean ranking position (days with pos ≤ 0 excluded)</td>
+            <td>Deeper positions have different opportunity profiles; independent of label</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-caption">Both features observable at decision time. No label-derived, future, or product-decision
+      features used.</p>
+
+    <h3>Exclusions</h3>
+    <p><strong>Client identifiers, URLs, queries:</strong> removed during pseudonymization. <strong>Product-decision
+        flags</strong> (<code>health_score</code>, <code>priority_score</code>): excluded so the model learns from
+      signals, not product decisions. <strong>Zero-impression rows:</strong> no search presence. <strong>GA4-only
+        features:</strong> ~4% coverage, excluded to avoid noise.</p>
+
+    <div class="safety-box">
+      <div class="safety-side does">
+        <h4>Data Safety</h4>
+        <ul>
+          <li>All client names, domains, URLs, queries pseudonymized</li>
+          <li>No private data on this page</li>
+          <li>Client identifiers used only for grouped validation</li>
+        </ul>
+      </div>
+      <div class="safety-side doesnot">
+        <h4>Never Used</h4>
+        <ul>
+          <li>No product-decision flags as features</li>
+          <li>No future-window data</li>
+          <li>No GA4-only features (4% coverage)</li>
+        </ul>
       </div>
     </div>
-    <div class="figure-card" data-fig="figures/confidence_distribution.png" data-cap="Data-signal confidence tiers">
-      <img src="figures/confidence_distribution.png" alt="Confidence distribution" loading="lazy">
-      <div class="figure-card-body">
-        <h4>Confidence Distribution</h4>
-        <p>HIGH (84,709), MODERATE (90,595), LOW (156,133).</p>
-        <div class="takeaway">~25.6% of pages have rich signal; LOW-confidence tier should be treated with caution.</div>
+  </section>
+
+  <section class="section section-alt reveal" id="method">
+    <div class="section-label">04 — Methodology</div>
+    <h2>Methodology</h2>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-node">1</div>
+        <div class="pipeline-content">
+          <strong>Research Question</strong>
+          <span>Which pages should a human reviewer inspect first?</span>
+          <div class="pipeline-hover">Defines the scope: prioritization, not prediction or optimization.</div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">2</div>
+        <div class="pipeline-content">
+          <strong>March 2026 Data</strong>
+          <span>9.8M daily rows → 331,437 page-level records</span>
+          <div class="pipeline-hover">Single-month cross-section. No longitudinal or seasonal signal captured.</div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">3</div>
+        <div class="pipeline-content">
+          <strong>Page-Level Features</strong>
+          <span>Impressions + average search position</span>
+          <div class="pipeline-hover">Two observable signals. No label-derived, future, or product-decision features.
+          </div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">4</div>
+        <div class="pipeline-content">
+          <strong>Transparent Baseline</strong>
+          <span>Rule-based position + impression scoring</span>
+          <div class="pipeline-hover">What a human analyst might build without ML. Fixed thresholds, fully
+            interpretable.</div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">5</div>
+        <div class="pipeline-content">
+          <strong>Logistic Regression</strong>
+          <span>Primary model — calibrated probability scores</span>
+          <div class="pipeline-hover">scikit-learn LogisticRegression, max_iter=1000, StandardScaler fitted on training
+            fold only.</div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">6</div>
+        <div class="pipeline-content">
+          <strong>5-Fold Grouped Validation</strong>
+          <span>GroupKFold by client — zero client overlap</span>
+          <div class="pipeline-hover">Each fold: ~44 clients train, ~11 test. Tests generalization to unseen clients,
+            not just unseen pages.</div>
+        </div>
+        <div class="pipeline-connector"></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-node">7</div>
+        <div class="pipeline-content">
+          <strong>Ranked Review Queue</strong>
+          <span>Top 1,000 pages for human inspection</span>
+          <div class="pipeline-hover">The final output: an ordered list scored by LR probability, ready for human
+            triage.</div>
+        </div>
       </div>
     </div>
+
+    <dl class="method-facts">
+      <div class="mf-row">
+        <dt>Features</dt>
+        <dd><span class="mf-chip">March GSC impressions</span><span class="mf-chip">March GSC clicks</span><span
+            class="mf-chip">March GSC CTR</span><span class="mf-chip">March GA4 sessions</span><span
+            class="mf-chip">March scroll events</span></dd>
+      </div>
+      <div class="mf-row">
+        <dt>Validation</dt>
+        <dd>5-fold GroupKFold grouped by client_hash_id across 55 clients</dd>
+      </div>
+      <div class="mf-row">
+        <dt>Primary Model</dt>
+        <dd>Logistic Regression</dd>
+      </div>
+      <div class="mf-row">
+        <dt>Secondary Model</dt>
+        <dd>Random Forest (100 estimators)</dd>
+      </div>
+      <div class="mf-row">
+        <dt>Baseline</dt>
+        <dd>Position + impression rule</dd>
+      </div>
+      <div class="mf-row">
+        <dt>Label</dt>
+        <dd><code>opportunity_proxy = (impressions &gt; 0) &amp; (clicks == 0)</code>. Base rate: 32.6%. This is a
+          proxy, not a future prediction target.</dd>
+      </div>
+    </dl>
+
+    <h3>Leakage Audit</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Future-window inputs</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — March 2026 only</td>
+          </tr>
+          <tr>
+            <td>Label-derived features</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — Clicks and CTR excluded</td>
+          </tr>
+          <tr>
+            <td>Product flags</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — No product-decision flags</td>
+          </tr>
+          <tr>
+            <td>Target-derived fields</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — Trend fields excluded</td>
+          </tr>
+          <tr>
+            <td>Train/test separation</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — GroupKFold, zero overlap</td>
+          </tr>
+          <tr>
+            <td>Preprocessing</td>
+            <td><span style="color:var(--green);font-weight:600">PASS</span> — Scaler fitted on train only</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section reveal" id="results"
+    style="background:linear-gradient(180deg,rgba(26,122,122,0.02) 0%,var(--bg) 40%);border-bottom:1px solid var(--border-l)">
+    <div class="section-label">05 — Results</div>
+    <h2>Results</h2>
+
+    <div class="results-hero">
+      <div class="results-hero-card primary">
+        <div class="rh-model">Logistic Regression · Primary</div>
+        <div class="rh-value">0.971</div>
+        <div class="rh-ci">± 0.030</div>
+        <div class="rh-metric">Precision@1000</div>
+      </div>
+      <div class="results-hero-vs">
+        <div class="vs-text">vs</div>
+        <div class="vs-lift">≈1.17× lift</div>
+        <div class="vs-baserate">Base rate: 32.6%</div>
+      </div>
+      <div class="results-hero-card">
+        <div class="rh-model">Baseline · Rule-based</div>
+        <div class="rh-value">0.828</div>
+        <div class="rh-ci">± 0.119</div>
+        <div class="rh-metric">Precision@1000</div>
+      </div>
+    </div>
+
+    <p>Under client-grouped validation, Logistic Regression achieved P@1000 = 0.971 ± 0.030 versus 0.828 ± 0.119 for the
+      baseline (~1.17×).</p>
+
+    <div class="comparison-bars">
+      <h3>Precision@1000 Comparison</h3>
+      <div class="bar-row">
+        <div class="bar-label primary-label">LR</div>
+        <div class="bar-track">
+          <div class="bar-fill lr" style="width:97.1%"></div>
+        </div>
+        <div class="bar-value primary-value">0.971</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">RF</div>
+        <div class="bar-track">
+          <div class="bar-fill rf" style="width:95.3%"></div>
+        </div>
+        <div class="bar-value">0.953</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Baseline</div>
+        <div class="bar-track">
+          <div class="bar-fill baseline" style="width:82.8%"></div>
+        </div>
+        <div class="bar-value">0.828</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Base rate</div>
+        <div class="bar-track">
+          <div class="bar-fill baserate" style="width:32.6%"></div>
+        </div>
+        <div class="bar-value">0.326</div>
+      </div>
+      <div class="bar-legend">
+        <span class="leg-lr">Primary (LR)</span>
+        <span class="leg-rf">Secondary (RF)</span>
+        <span class="leg-bl">Rule-based baseline</span>
+        <span class="leg-br">Base rate</span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>P@100</th>
+            <th>P@500</th>
+            <th>P@1000</th>
+            <th>P@5000</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Baseline (rule-based)</td>
+            <td class="metric-secondary">0.746 ± 0.105</td>
+            <td class="metric-secondary">0.821 ± 0.124</td>
+            <td class="metric-secondary">0.828 ± 0.119</td>
+            <td class="metric-secondary">0.702 ± 0.156</td>
+          </tr>
+          <tr class="highlight-row">
+            <td><strong>Logistic Regression</strong> <span
+                style="font-size:.6rem;color:var(--accent);font-weight:600">PRIMARY</span></td>
+            <td class="metric-highlight">0.992 ± 0.016</td>
+            <td class="metric-highlight">0.982 ± 0.025</td>
+            <td class="metric-highlight">0.971 ± 0.030</td>
+            <td class="metric-highlight">0.910 ± 0.053</td>
+          </tr>
+          <tr>
+            <td>Random Forest <span style="font-size:.6rem;color:var(--text-m);font-weight:500">SECONDARY</span></td>
+            <td class="metric-secondary">0.964 ± 0.024</td>
+            <td class="metric-secondary">0.951 ± 0.014</td>
+            <td class="metric-secondary">0.953 ± 0.011</td>
+            <td class="metric-secondary">0.948 ± 0.016</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-caption">Base rate: 32.6%. All metrics out-of-client-fold (5-fold GroupKFold, grouped by
+      client_hash_id).</p>
+
+    <p><strong>LR P@100 = 0.992:</strong> ~99 of its top 100 ranked pages are proxy-positive. The RF achieves 0.953 ±
+      0.011 at P@1000 with lower variance, but LR was independently audited (Week 6) and used for the Week 7 action
+      queue — making it the <strong>primary decision-support model</strong>.</p>
+
+    <h3>Queue Overlap</h3>
+    <p>LR and baseline top-1000 queues share only <strong>6 pages (0.6%)</strong>. The two methods identify
+      fundamentally different pages as highest priority.</p>
+
+    <h3>Feature Importance</h3>
+    <p><strong>LR coefficients (scaled):</strong> <code>march_gsc_impressions</code> = −4.912 (negative due to
+      fillna(0); within impressions>0 subset, higher impressions raise probability); <code>march_gsc_avg_position</code>
+      = +2.815 (deeper positions increase predicted probability).</p>
+
+    <h3>Visual Results</h3>
+    <div class="figure-grid figure-grid-primary">
+      <div class="figure-card" data-fig="figures/action_distribution.png"
+        data-cap="Action tier distribution: REVIEW, MONITOR, DEPRIORITISE">
+        <img src="figures/action_distribution.png" alt="Action tier distribution" loading="lazy">
+        <div class="figure-card-body">
+          <h4>Action Tier Distribution</h4>
+          <p>REVIEW (1,000), MONITOR (174,304), DEPRIORITISE (156,133).</p>
+          <div class="takeaway">The model concentrates highest-priority pages into a manageable 1,000-page batch.</div>
+        </div>
+      </div>
+      <div class="figure-card" data-fig="figures/archetype_breakdown.png"
+        data-cap="Behavioral archetype breakdown across 331,437 pages">
+        <img src="figures/archetype_breakdown.png" alt="Archetype breakdown" loading="lazy">
+        <div class="figure-card-body">
+          <h4>Archetype Breakdown</h4>
+          <p>Ghost (46.7%), Already performing (29.2%), Hidden gems (16.9%), Emerging (6.6%).</p>
+          <div class="takeaway">Nearly half the portfolio has no search visibility; hidden gems are the primary review
+            opportunity.</div>
+        </div>
+      </div>
+      <div class="figure-card" data-fig="figures/queue_vs_baseline_overlap.png" data-cap="LR vs baseline queue overlap">
+        <img src="figures/queue_vs_baseline_overlap.png" alt="Queue overlap" loading="lazy">
+        <div class="figure-card-body">
+          <h4>Queue vs. Baseline Overlap</h4>
+          <p>Only 6 shared pages (0.6%). 994 unique to each method.</p>
+          <div class="takeaway">Learned ranking captures patterns that fixed thresholds miss.</div>
+        </div>
+      </div>
+      <div class="figure-card" data-fig="figures/client_concentration.png"
+        data-cap="Client distribution in top-1000 queue">
+        <img src="figures/client_concentration.png" alt="Client concentration" loading="lazy">
+        <div class="figure-card-body">
+          <h4>Client Concentration</h4>
+          <p>One client contributes 50% of the top-1000 queue.</p>
+          <div class="takeaway">Operational consideration: queue deployment should account for client concentration.
+          </div>
+        </div>
+      </div>
+      <div class="figure-card" data-fig="figures/confidence_distribution.png" data-cap="Data-signal confidence tiers">
+        <img src="figures/confidence_distribution.png" alt="Confidence distribution" loading="lazy">
+        <div class="figure-card-body">
+          <h4>Confidence Distribution</h4>
+          <p>HIGH (84,709), MODERATE (90,595), LOW (156,133).</p>
+          <div class="takeaway">~25.6% of pages have rich signal; LOW-confidence tier should be treated with caution.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt reveal" id="limits">
+    <div class="section-label">06 — Limitations</div>
+    <h2>What This Study Does Not Claim</h2>
+
+    <ol class="limitation-list">
+      <li><strong>Proxy &amp; Label</strong> — The target (<code>opportunity_proxy</code>) is a decision-support proxy,
+        not a measure of actual business impact. <code>impressions &gt; 0</code> appears in both the feature set and the
+        label definition, creating a structural relationship. Precision@K is partly influenced by this overlap. This is
+        not a clean future prediction target.</li>
+      <li><strong>Generalization</strong> — GroupKFold with 55 clients tests across groups within one portfolio; results
+        may not generalize to different industries or search landscapes. One client dominates ~50% of the top-1000
+        queue. Random Forest was evaluated in Week 5 but not independently audited in Week 6 and not used for the Week 7
+        action queue.</li>
+      <li><strong>Observational</strong> — All associations are observed in search data only. No causality is
+        established. The output is a ranked review queue, not prescribed actions; human judgment remains essential for
+        every editorial decision.</li>
+      <li><strong>Production Scope</strong> — The queue prioritizes review; it does not automate publishing decisions.
+        Only March 2026 data — no seasonal, trend, or longitudinal patterns captured. Results are directional evidence
+        for similar triage tasks, not general-purpose SEO prediction.</li>
+    </ol>
+  </section>
+
+  <section class="section reveal" id="actions">
+    <div class="section-label">07 — Ranked Recommendations</div>
+    <h2>Action Playbook</h2>
+
+    <div class="tier-grid">
+      <div class="tier-card review">
+        <div class="tier-label">Review</div>
+        <div class="tier-count">1,000</div>
+        <div class="tier-pct">0.3% of portfolio</div>
+        <div class="tier-desc">Top-ranked pages — the primary human-review queue. Each page has a reason code and
+          behavioral archetype to guide investigation.</div>
+        <div class="tier-action">→ Start here. ~971 of 1,000 are proxy-positive under evaluation.</div>
+      </div>
+      <div class="tier-card monitor">
+        <div class="tier-label">Monitor</div>
+        <div class="tier-count">174,304</div>
+        <div class="tier-pct">52.6% of portfolio</div>
+        <div class="tier-desc">Observable search signal (impressions &gt; 0, position available) but outside the primary
+          queue. Watch for signal changes.</div>
+        <div class="tier-action">→ Track for impression or position shifts that might elevate priority.</div>
+      </div>
+      <div class="tier-card deprioritise">
+        <div class="tier-label">Deprioritise</div>
+        <div class="tier-count">156,133</div>
+        <div class="tier-pct">47.1% of portfolio</div>
+        <div class="tier-desc">Insufficient signal or already performing well. Low priority for human review given
+          limited capacity.</div>
+        <div class="tier-action">→ Revisit only after exhausting REVIEW and MONITOR tiers.</div>
+      </div>
+    </div>
+
+    <h3>Behavioral Archetypes</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Archetype</th>
+            <th>What It Means</th>
+            <th>Review Direction</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Hidden gems</strong> (56,049)</td>
+            <td>Impressions &gt; 0, clicks = 0, position &gt; 10</td>
+            <td>Content alignment, title/meta improvements</td>
+          </tr>
+          <tr>
+            <td><strong>Deep rankers</strong> (606)</td>
+            <td>Position &gt; 50, impressions &gt; 0</td>
+            <td>Competitive query targeting, structural SEO</td>
+          </tr>
+          <tr>
+            <td><strong>Emerging</strong> (21,867)</td>
+            <td>Low impressions, position 11–50</td>
+            <td>Monitor for growth; verify topic targeting</td>
+          </tr>
+          <tr>
+            <td><strong>Already performing</strong> (96,782)</td>
+            <td>Position ≤ 10, clicks &gt; 0</td>
+            <td>Low priority; monitor for drift</td>
+          </tr>
+          <tr>
+            <td><strong>Ghost pages</strong> (154,699)</td>
+            <td>Impressions = 0</td>
+            <td>Check indexing, crawlability, technical issues</td>
+          </tr>
+          <tr>
+            <td><strong>Data gaps</strong> (1,434)</td>
+            <td>Position missing, impressions &gt; 0</td>
+            <td>Investigate data availability</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Recommendations</h3>
+    <ol class="rec-list">
+      <li>
+        <span class="rec-num">01</span>
+        <div class="rec-body">
+          <strong>Start with the top-ranked pages</strong>
+          <span>The 1,000-page REVIEW tier. ~971 proxy-positive — pages with impressions but no clicks.</span>
+          <div class="rec-signal">Signal: impressions present, no clicks → Action: content/metadata review → Rationale:
+            highest probability of productive human intervention</div>
+        </div>
+      </li>
+      <li>
+        <span class="rec-num">02</span>
+        <div class="rec-body">
+          <strong>Use reason codes and archetypes</strong>
+          <span>Each page has a reason code and behavioral archetype providing starting context for the human
+            reviewer.</span>
+          <div class="rec-signal">Signal: position + impression combination → Action: archetype-guided investigation →
+            Rationale: different patterns require different review approaches</div>
+        </div>
+      </li>
+      <li>
+        <span class="rec-num">03</span>
+        <div class="rec-body">
+          <strong>Monitor the middle tier</strong>
+          <span>174,304 MONITOR pages have observable signal. Track for changes that might elevate priority.</span>
+          <div class="rec-signal">Signal: impressions &gt; 0 but below REVIEW threshold → Action: periodic reassessment
+            → Rationale: position shifts may surface new opportunities</div>
+        </div>
+      </li>
+      <li>
+        <span class="rec-num">04</span>
+        <div class="rec-body">
+          <strong>Maintain human judgment</strong>
+          <span>The model scores where to look; the human decides what to do. Publishing, rewriting, merging, pruning
+            all require editorial judgment.</span>
+          <div class="rec-signal">Signal: model output is a rank, not a decision → Action: human review as final step →
+            Rationale: editorial context cannot be automated</div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="section section-alt reveal" id="repro">
+    <div class="section-label">08 — Reproducibility</div>
+    <h2>Evidence Chain</h2>
+
+    <div class="evidence-chain">
+      <div class="evidence-node">
+        <div class="week">W03</div>
+        <div class="title">Data Contract</div>
+        <div class="desc">Schema, access, exclusions</div>
+      </div>
+      <div class="evidence-arrow">→</div>
+      <div class="evidence-node">
+        <div class="week">W04</div>
+        <div class="title">Baseline + Signal Audit</div>
+        <div class="desc">Rule-based scoring, signal verdicts</div>
+      </div>
+      <div class="evidence-arrow">→</div>
+      <div class="evidence-node">
+        <div class="week">W05</div>
+        <div class="title">Modeling</div>
+        <div class="desc">LR, RF, GroupKFold comparison</div>
+      </div>
+      <div class="evidence-arrow">→</div>
+      <div class="evidence-node">
+        <div class="week">W06</div>
+        <div class="title">Validation Audit</div>
+        <div class="desc">Independent LR audit, leakage checks</div>
+      </div>
+      <div class="evidence-arrow">→</div>
+      <div class="evidence-node">
+        <div class="week">W07</div>
+        <div class="title">Action Playbook</div>
+        <div class="desc">Ranked queue, archetypes, tiers</div>
+      </div>
+      <div class="evidence-arrow">→</div>
+      <div class="evidence-node">
+        <div class="week">W08</div>
+        <div class="title">Research Paper</div>
+        <div class="desc">Capstone documentation</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Week</th>
+            <th>Notebook</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>W05</td>
+            <td><code>w05_model.ipynb</code></td>
+            <td>Model training and comparison (LR, RF, baseline)</td>
+          </tr>
+          <tr>
+            <td>W06</td>
+            <td><code>w06_validation_audit.ipynb</code></td>
+            <td>Independent validation and research-claim audit</td>
+          </tr>
+          <tr>
+            <td>W07</td>
+            <td><code>w07_action_playbook.ipynb</code></td>
+            <td>Action playbook and LR-ranked queue generation</td>
+          </tr>
+          <tr>
+            <td>W08</td>
+            <td><code>capstone.ipynb</code></td>
+            <td>Capstone paper and final documentation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>How to Rerun</h3>
+    <p><strong>Repository:</strong> <code>work/notebooks/capstone.ipynb</code>. <strong>Data:</strong>
+      <code>FlyRank/internship-warehouse</code> on Hugging Face (gated; accept data-use terms).
+      <strong>Dependencies:</strong> Python 3.12+, pandas, numpy, scikit-learn, matplotlib, huggingface-hub,
+      python-dotenv. <strong>Environment:</strong> Set <code>HF_TOKEN</code> in <code>.env</code>.
+      <strong>Execution:</strong> Run top-to-bottom.</p>
+  </section>
+
+  <section class="section reveal" id="acknowledgments">
+    <div class="section-label">09 — Acknowledgments</div>
+    <h2>Acknowledgments &amp; Data Credit</h2>
+    <p>This work was completed as part of the FlyRank AI Internship. We are grateful to the FlyRank leadership team for
+      their guidance, technical mentorship, and the learning environment that made this research possible.</p>
+
+    <div class="ack-team">
+      <div class="ack-person">
+        <strong>Alen Malkoč</strong>
+        <div class="ack-role">Founder &amp; CEO</div>
+      </div>
+      <div class="ack-person">
+        <strong>Mirza Ašćerić</strong>
+        <div class="ack-role">Director of AI, Agent Orchestration</div>
+      </div>
+      <div class="ack-person">
+        <strong>Haris Hodžić</strong>
+        <div class="ack-role">Director of AI, Data Analytics</div>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem"><strong>Built on the <a href="https://flyrank.ai/" target="_blank"
+          rel="noopener">FlyRank</a> ML Internship dataset.</strong></p>
+    <p>The pseudonymized warehouse release (<code>FlyRank/internship-warehouse</code> on Hugging Face) was prepared by
+      FlyRank for internship use. All client names, domains, URLs, raw search queries, and private identifiers were
+      removed or pseudonymized before release.</p>
+  </section>
+
+  <footer class="footer">
+    <p><strong>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility
+        Signals</strong></p>
+    <p>FlyRank ML Internship · Capstone Research Paper</p>
+    <p style="margin-top:.5rem">Built on the <a href="https://flyrank.ai/" target="_blank" rel="noopener">FlyRank</a> ML
+      Internship dataset. All data pseudonymized. No client-identifying information on this page.</p>
+    <p style="margin-top:.5rem;font-size:.68rem;color:rgba(255,255,255,.4)">Observations only. No causal claims. No
+      claims about Google's algorithm. Decision-support output.</p>
+  </footer>
+
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  </button>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-label="Figure viewer">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+    <img id="lightboxImg" src="" alt="">
+    <div class="lightbox-caption" id="lightboxCaption"></div>
   </div>
-</section>
 
-<section class="section section-alt reveal" id="limits">
-  <div class="section-label">06 — Limitations</div>
-  <h2>What This Study Does Not Claim</h2>
-
-  <ol class="limitation-list">
-    <li><strong>Proxy &amp; Label</strong> — The target (<code>opportunity_proxy</code>) is a decision-support proxy, not a measure of actual business impact. <code>impressions &gt; 0</code> appears in both the feature set and the label definition, creating a structural relationship. Precision@K is partly influenced by this overlap. This is not a clean future prediction target.</li>
-    <li><strong>Generalization</strong> — GroupKFold with 55 clients tests across groups within one portfolio; results may not generalize to different industries or search landscapes. One client dominates ~50% of the top-1000 queue. Random Forest was evaluated in Week 5 but not independently audited in Week 6 and not used for the Week 7 action queue.</li>
-    <li><strong>Observational</strong> — All associations are observed in search data only. No causality is established. The output is a ranked review queue, not prescribed actions; human judgment remains essential for every editorial decision.</li>
-    <li><strong>Production Scope</strong> — The queue prioritizes review; it does not automate publishing decisions. Only March 2026 data — no seasonal, trend, or longitudinal patterns captured. Results are directional evidence for similar triage tasks, not general-purpose SEO prediction.</li>
-  </ol>
-</section>
-
-<section class="section reveal" id="actions">
-  <div class="section-label">07 — Ranked Recommendations</div>
-  <h2>Action Playbook</h2>
-
-  <div class="tier-grid">
-    <div class="tier-card review">
-      <div class="tier-label">Review</div>
-      <div class="tier-count">1,000</div>
-      <div class="tier-pct">0.3% of portfolio</div>
-      <div class="tier-desc">Top-ranked pages — the primary human-review queue. Each page has a reason code and behavioral archetype to guide investigation.</div>
-      <div class="tier-action">→ Start here. ~971 of 1,000 are proxy-positive under evaluation.</div>
-    </div>
-    <div class="tier-card monitor">
-      <div class="tier-label">Monitor</div>
-      <div class="tier-count">174,304</div>
-      <div class="tier-pct">52.6% of portfolio</div>
-      <div class="tier-desc">Observable search signal (impressions &gt; 0, position available) but outside the primary queue. Watch for signal changes.</div>
-      <div class="tier-action">→ Track for impression or position shifts that might elevate priority.</div>
-    </div>
-    <div class="tier-card deprioritise">
-      <div class="tier-label">Deprioritise</div>
-      <div class="tier-count">156,133</div>
-      <div class="tier-pct">47.1% of portfolio</div>
-      <div class="tier-desc">Insufficient signal or already performing well. Low priority for human review given limited capacity.</div>
-      <div class="tier-action">→ Revisit only after exhausting REVIEW and MONITOR tiers.</div>
-    </div>
-  </div>
-
-  <h3>Behavioral Archetypes</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Archetype</th><th>What It Means</th><th>Review Direction</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Hidden gems</strong> (56,049)</td><td>Impressions &gt; 0, clicks = 0, position &gt; 10</td><td>Content alignment, title/meta improvements</td></tr>
-        <tr><td><strong>Deep rankers</strong> (606)</td><td>Position &gt; 50, impressions &gt; 0</td><td>Competitive query targeting, structural SEO</td></tr>
-        <tr><td><strong>Emerging</strong> (21,867)</td><td>Low impressions, position 11–50</td><td>Monitor for growth; verify topic targeting</td></tr>
-        <tr><td><strong>Already performing</strong> (96,782)</td><td>Position ≤ 10, clicks &gt; 0</td><td>Low priority; monitor for drift</td></tr>
-        <tr><td><strong>Ghost pages</strong> (154,699)</td><td>Impressions = 0</td><td>Check indexing, crawlability, technical issues</td></tr>
-        <tr><td><strong>Data gaps</strong> (1,434)</td><td>Position missing, impressions &gt; 0</td><td>Investigate data availability</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Recommendations</h3>
-  <ol class="rec-list">
-    <li>
-      <span class="rec-num">01</span>
-      <div class="rec-body">
-        <strong>Start with the top-ranked pages</strong>
-        <span>The 1,000-page REVIEW tier. ~971 proxy-positive — pages with impressions but no clicks.</span>
-        <div class="rec-signal">Signal: impressions present, no clicks → Action: content/metadata review → Rationale: highest probability of productive human intervention</div>
-      </div>
-    </li>
-    <li>
-      <span class="rec-num">02</span>
-      <div class="rec-body">
-        <strong>Use reason codes and archetypes</strong>
-        <span>Each page has a reason code and behavioral archetype providing starting context for the human reviewer.</span>
-        <div class="rec-signal">Signal: position + impression combination → Action: archetype-guided investigation → Rationale: different patterns require different review approaches</div>
-      </div>
-    </li>
-    <li>
-      <span class="rec-num">03</span>
-      <div class="rec-body">
-        <strong>Monitor the middle tier</strong>
-        <span>174,304 MONITOR pages have observable signal. Track for changes that might elevate priority.</span>
-        <div class="rec-signal">Signal: impressions &gt; 0 but below REVIEW threshold → Action: periodic reassessment → Rationale: position shifts may surface new opportunities</div>
-      </div>
-    </li>
-    <li>
-      <span class="rec-num">04</span>
-      <div class="rec-body">
-        <strong>Maintain human judgment</strong>
-        <span>The model scores where to look; the human decides what to do. Publishing, rewriting, merging, pruning all require editorial judgment.</span>
-        <div class="rec-signal">Signal: model output is a rank, not a decision → Action: human review as final step → Rationale: editorial context cannot be automated</div>
-      </div>
-    </li>
-  </ol>
-</section>
-
-<section class="section section-alt reveal" id="repro">
-  <div class="section-label">08 — Reproducibility</div>
-  <h2>Evidence Chain</h2>
-
-  <div class="evidence-chain">
-    <div class="evidence-node"><div class="week">W03</div><div class="title">Data Contract</div><div class="desc">Schema, access, exclusions</div></div>
-    <div class="evidence-arrow">→</div>
-    <div class="evidence-node"><div class="week">W04</div><div class="title">Baseline + Signal Audit</div><div class="desc">Rule-based scoring, signal verdicts</div></div>
-    <div class="evidence-arrow">→</div>
-    <div class="evidence-node"><div class="week">W05</div><div class="title">Modeling</div><div class="desc">LR, RF, GroupKFold comparison</div></div>
-    <div class="evidence-arrow">→</div>
-    <div class="evidence-node"><div class="week">W06</div><div class="title">Validation Audit</div><div class="desc">Independent LR audit, leakage checks</div></div>
-    <div class="evidence-arrow">→</div>
-    <div class="evidence-node"><div class="week">W07</div><div class="title">Action Playbook</div><div class="desc">Ranked queue, archetypes, tiers</div></div>
-    <div class="evidence-arrow">→</div>
-    <div class="evidence-node"><div class="week">W08</div><div class="title">Research Paper</div><div class="desc">Capstone documentation</div></div>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Week</th><th>Notebook</th><th>Purpose</th></tr></thead>
-      <tbody>
-        <tr><td>W05</td><td><code>w05_model.ipynb</code></td><td>Model training and comparison (LR, RF, baseline)</td></tr>
-        <tr><td>W06</td><td><code>w06_validation_audit.ipynb</code></td><td>Independent validation and research-claim audit</td></tr>
-        <tr><td>W07</td><td><code>w07_action_playbook.ipynb</code></td><td>Action playbook and LR-ranked queue generation</td></tr>
-        <tr><td>W08</td><td><code>capstone.ipynb</code></td><td>Capstone paper and final documentation</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h3>How to Rerun</h3>
-  <p><strong>Repository:</strong> <code>work/notebooks/capstone.ipynb</code>. <strong>Data:</strong> <code>FlyRank/internship-warehouse</code> on Hugging Face (gated; accept data-use terms). <strong>Dependencies:</strong> Python 3.12+, pandas, numpy, scikit-learn, matplotlib, huggingface-hub, python-dotenv. <strong>Environment:</strong> Set <code>HF_TOKEN</code> in <code>.env</code>. <strong>Execution:</strong> Run top-to-bottom.</p>
-</section>
-
-<section class="section reveal" id="acknowledgments">
-  <div class="section-label">09 — Acknowledgments</div>
-  <h2>Acknowledgments &amp; Data Credit</h2>
-  <p>This work was completed as part of the FlyRank AI Internship. We are grateful to the FlyRank leadership team for their guidance, technical mentorship, and the learning environment that made this research possible.</p>
-
-  <div class="ack-team">
-    <div class="ack-person">
-      <strong>Alen Malkoč</strong>
-      <div class="ack-role">Founder &amp; CEO</div>
-    </div>
-    <div class="ack-person">
-      <strong>Mirza Ašćerić</strong>
-      <div class="ack-role">Director of AI, Agent Orchestration</div>
-    </div>
-    <div class="ack-person">
-      <strong>Haris Hodžić</strong>
-      <div class="ack-role">Director of AI, Data Analytics</div>
-    </div>
-  </div>
-
-  <p style="margin-top:1rem"><strong>Built on the <a href="https://flyrank.ai/" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset.</strong></p>
-  <p>The pseudonymized warehouse release (<code>FlyRank/internship-warehouse</code> on Hugging Face) was prepared by FlyRank for internship use. All client names, domains, URLs, raw search queries, and private identifiers were removed or pseudonymized before release.</p>
-</section>
-
-<footer class="footer">
-  <p><strong>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility Signals</strong></p>
-  <p>FlyRank ML Internship · Capstone Research Paper</p>
-  <p style="margin-top:.5rem">Built on the <a href="https://flyrank.ai/" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset. All data pseudonymized. No client-identifying information on this page.</p>
-  <p style="margin-top:.5rem;font-size:.68rem;color:rgba(255,255,255,.4)">Observations only. No causal claims. No claims about Google's algorithm. Decision-support output.</p>
-</footer>
-
-<button class="back-to-top" id="backToTop" aria-label="Back to top">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
-</button>
-
-<div class="lightbox" id="lightbox" role="dialog" aria-label="Figure viewer">
-  <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
-  <img id="lightboxImg" src="" alt="">
-  <div class="lightbox-caption" id="lightboxCaption"></div>
-</div>
-
-<script>
-(function(){
-  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!window.location.hash){
-    if('scrollRestoration' in history){history.scrollRestoration = 'manual'}
-    window.scrollTo(0, 0);
-  } else {
-    if('scrollRestoration' in history){history.scrollRestoration = 'manual'}
-  }
-
-  var nav = document.getElementById('nav');
-  window.addEventListener('scroll', function(){
-    nav.classList.toggle('scrolled', window.scrollY > 10);
-    document.documentElement.style.setProperty('--nav-h', window.scrollY > 10 ? '44px' : '52px');
-  }, {passive:true});
-
-  var toggle = document.getElementById('navToggle');
-  var overlay = document.getElementById('mobileOverlay');
-  var mobileMenu = document.getElementById('mobileMenu');
-  var mobileClose = document.getElementById('mobileMenuClose');
-  var mobileLinks = mobileMenu.querySelectorAll('.mobile-menu-link');
-  var isMenuOpen = false;
-
-  function openMobileMenu(){
-    if(isMenuOpen) return;
-    isMenuOpen = true;
-    mobileMenu.classList.add('open');
-    overlay.classList.add('open');
-    mobileMenu.setAttribute('aria-hidden','false');
-    document.body.classList.add('menu-open');
-    toggle.setAttribute('aria-label','Close navigation menu');
-    updateMobileActive();
-  }
-
-  function closeMobileMenu(){
-    if(!isMenuOpen) return;
-    isMenuOpen = false;
-    mobileMenu.classList.remove('open');
-    overlay.classList.remove('open');
-    mobileMenu.setAttribute('aria-hidden','true');
-    document.body.classList.remove('menu-open');
-    toggle.setAttribute('aria-label','Open navigation menu');
-  }
-
-  toggle.addEventListener('click', function(){
-    if(isMenuOpen){ closeMobileMenu(); } else { openMobileMenu(); }
-  });
-  mobileClose.addEventListener('click', closeMobileMenu);
-  overlay.addEventListener('click', closeMobileMenu);
-
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && isMenuOpen){ closeMobileMenu(); }
-  });
-
-  mobileLinks.forEach(function(link){
-    link.addEventListener('click', function(e){
-      e.preventDefault();
-      var target = document.querySelector(link.getAttribute('href'));
-      closeMobileMenu();
-      if(target){
-        setTimeout(function(){
-          target.scrollIntoView({behavior: prefersReduced ? 'auto' : 'smooth', block:'start'});
-        }, 100);
+  <script>
+    (function () {
+      var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!window.location.hash) {
+        if ('scrollRestoration' in history) { history.scrollRestoration = 'manual' }
+        window.scrollTo(0, 0);
+      } else {
+        if ('scrollRestoration' in history) { history.scrollRestoration = 'manual' }
       }
-    });
-  });
 
-  var sections = document.querySelectorAll('section[id], header[id]');
-  var navLinks = document.getElementById('navLinks').querySelectorAll('a');
-  function setActive(){
-    var scrollY = window.scrollY + 80;
-    var current = '';
-    sections.forEach(function(s){ if(s.offsetTop <= scrollY) current = s.id; });
-    navLinks.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
-  }
-  window.addEventListener('scroll', setActive, {passive:true});
-  setActive();
+      var nav = document.getElementById('nav');
+      window.addEventListener('scroll', function () {
+        nav.classList.toggle('scrolled', window.scrollY > 10);
+        document.documentElement.style.setProperty('--nav-h', window.scrollY > 10 ? '44px' : '52px');
+      }, { passive: true });
 
-  function updateMobileActive(){
-    var scrollY = window.scrollY + 80;
-    var current = '';
-    sections.forEach(function(s){ if(s.offsetTop <= scrollY) current = s.id; });
-    mobileLinks.forEach(function(link){
-      var sec = link.getAttribute('data-section');
-      link.classList.toggle('active', sec === current);
-    });
-  }
-  window.addEventListener('scroll', updateMobileActive, {passive:true});
-  updateMobileActive();
+      var toggle = document.getElementById('navToggle');
+      var overlay = document.getElementById('mobileOverlay');
+      var mobileMenu = document.getElementById('mobileMenu');
+      var mobileClose = document.getElementById('mobileMenuClose');
+      var mobileLinks = mobileMenu.querySelectorAll('.mobile-menu-link');
+      var isMenuOpen = false;
 
-  var progressBar = document.getElementById('progressBar');
-  window.addEventListener('scroll', function(){
-    var h = document.documentElement.scrollHeight - window.innerHeight;
-    var pct = h > 0 ? (window.scrollY / h) * 100 : 0;
-    progressBar.style.width = pct + '%';
-  }, {passive:true});
+      function openMobileMenu() {
+        if (isMenuOpen) return;
+        isMenuOpen = true;
+        mobileMenu.classList.add('open');
+        overlay.classList.add('open');
+        mobileMenu.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('menu-open');
+        toggle.setAttribute('aria-label', 'Close navigation menu');
+        updateMobileActive();
+      }
 
-  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    var revealEls = document.querySelectorAll('.reveal');
-    var observer = new IntersectionObserver(function(entries){
-      entries.forEach(function(e){
-        if(e.isIntersecting){ e.target.classList.add('visible'); observer.unobserve(e.target); }
+      function closeMobileMenu() {
+        if (!isMenuOpen) return;
+        isMenuOpen = false;
+        mobileMenu.classList.remove('open');
+        overlay.classList.remove('open');
+        mobileMenu.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('menu-open');
+        toggle.setAttribute('aria-label', 'Open navigation menu');
+      }
+
+      toggle.addEventListener('click', function () {
+        if (isMenuOpen) { closeMobileMenu(); } else { openMobileMenu(); }
       });
-    }, {threshold:0.08});
-    revealEls.forEach(function(el){ observer.observe(el); });
-  } else {
-    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('visible'); });
-  }
+      mobileClose.addEventListener('click', closeMobileMenu);
+      overlay.addEventListener('click', closeMobileMenu);
 
-  var lightbox = document.getElementById('lightbox');
-  var lbImg = document.getElementById('lightboxImg');
-  var lbCap = document.getElementById('lightboxCaption');
-  document.querySelectorAll('.figure-card[data-fig]').forEach(function(card){
-    card.addEventListener('click', function(){
-      lbImg.src = card.getAttribute('data-fig');
-      lbImg.alt = card.querySelector('h4').textContent;
-      lbCap.textContent = card.getAttribute('data-cap') || '';
-      lightbox.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    });
-  });
-  function closeLB(){
-    lightbox.classList.remove('open');
-    if(!isMenuOpen){ document.body.style.overflow = ''; }
-  }
-  document.getElementById('lightboxClose').addEventListener('click', closeLB);
-  lightbox.addEventListener('click', function(e){ if(e.target === lightbox) closeLB(); });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && lightbox.classList.contains('open')) closeLB(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isMenuOpen) { closeMobileMenu(); }
+      });
 
-  var backToTop = document.getElementById('backToTop');
-  window.addEventListener('scroll', function(){
-    backToTop.classList.toggle('visible', window.scrollY > 450);
-  }, {passive:true});
-  backToTop.addEventListener('click', function(){
-    window.scrollTo({top:0, behavior: prefersReduced ? 'auto' : 'smooth'});
-  });
+      mobileLinks.forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault();
+          var target = document.querySelector(link.getAttribute('href'));
+          closeMobileMenu();
+          if (target) {
+            setTimeout(function () {
+              target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
+            }, 100);
+          }
+        });
+      });
 
-  document.querySelectorAll('.table-wrap').forEach(function(tw){
-    function checkScroll(){
-      var canScroll = tw.scrollWidth > tw.clientWidth;
-      var atEnd = tw.scrollLeft + tw.clientWidth >= tw.scrollWidth - 4;
-      tw.classList.toggle('scroll-right', canScroll && !atEnd);
-    }
-    tw.addEventListener('scroll', checkScroll, {passive:true});
-    checkScroll();
-    new ResizeObserver(checkScroll).observe(tw);
-  });
-})();
-</script>
+      var sections = document.querySelectorAll('section[id], header[id]');
+      var navLinks = document.getElementById('navLinks').querySelectorAll('a');
+      function setActive() {
+        var scrollY = window.scrollY + 80;
+        var current = '';
+        sections.forEach(function (s) { if (s.offsetTop <= scrollY) current = s.id; });
+        navLinks.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
+      }
+      window.addEventListener('scroll', setActive, { passive: true });
+      setActive();
+
+      function updateMobileActive() {
+        var scrollY = window.scrollY + 80;
+        var current = '';
+        sections.forEach(function (s) { if (s.offsetTop <= scrollY) current = s.id; });
+        mobileLinks.forEach(function (link) {
+          var sec = link.getAttribute('data-section');
+          link.classList.toggle('active', sec === current);
+        });
+      }
+      window.addEventListener('scroll', updateMobileActive, { passive: true });
+      updateMobileActive();
+
+      var progressBar = document.getElementById('progressBar');
+      window.addEventListener('scroll', function () {
+        var h = document.documentElement.scrollHeight - window.innerHeight;
+        var pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+        progressBar.style.width = pct + '%';
+      }, { passive: true });
+
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        var revealEls = document.querySelectorAll('.reveal');
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+          });
+        }, { threshold: 0.08 });
+        revealEls.forEach(function (el) { observer.observe(el); });
+      } else {
+        document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('visible'); });
+      }
+
+      var lightbox = document.getElementById('lightbox');
+      var lbImg = document.getElementById('lightboxImg');
+      var lbCap = document.getElementById('lightboxCaption');
+      document.querySelectorAll('.figure-card[data-fig]').forEach(function (card) {
+        card.addEventListener('click', function () {
+          lbImg.src = card.getAttribute('data-fig');
+          lbImg.alt = card.querySelector('h4').textContent;
+          lbCap.textContent = card.getAttribute('data-cap') || '';
+          lightbox.classList.add('open');
+          document.body.style.overflow = 'hidden';
+        });
+      });
+      function closeLB() {
+        lightbox.classList.remove('open');
+        if (!isMenuOpen) { document.body.style.overflow = ''; }
+      }
+      document.getElementById('lightboxClose').addEventListener('click', closeLB);
+      lightbox.addEventListener('click', function (e) { if (e.target === lightbox) closeLB(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLB(); });
+
+      var backToTop = document.getElementById('backToTop');
+      window.addEventListener('scroll', function () {
+        backToTop.classList.toggle('visible', window.scrollY > 450);
+      }, { passive: true });
+      backToTop.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: prefersReduced ? 'auto' : 'smooth' });
+      });
+
+      document.querySelectorAll('.table-wrap').forEach(function (tw) {
+        function checkScroll() {
+          var canScroll = tw.scrollWidth > tw.clientWidth;
+          var atEnd = tw.scrollLeft + tw.clientWidth >= tw.scrollWidth - 4;
+          tw.classList.toggle('scroll-right', canScroll && !atEnd);
+        }
+        tw.addEventListener('scroll', checkScroll, { passive: true });
+        checkScroll();
+        new ResizeObserver(checkScroll).observe(tw);
+      });
+    })();
+  </script>
 </body>
+
 </html>
