@@ -1,0 +1,1096 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking Pages for Content Review — FlyRank ML Capstone</title>
+<meta name="description" content="A decision-support model using observed search-visibility signals to prioritize human SEO review. Logistic Regression achieves 0.971 Precision@1000 vs 0.828 baseline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FAF9F6;--bg-alt:#F4F2EE;--bg-card:#FFF;
+  --primary:#0F2B3C;--primary-light:#1A3D52;
+  --accent:#1A7A7A;--accent-light:#2AA8A8;--accent-dim:rgba(26,122,122,0.07);
+  --green:#2D8659;--green-light:#E8F5E9;--red:#B33A3A;--red-light:#FDF2F2;
+  --amber:#C48A1A;--text:#1A1A1A;--text-s:#4A5568;--text-m:#718096;
+  --border:#E2DFD8;--border-l:#EEECEA;
+  --sh-xs:0 1px 2px rgba(15,43,60,0.04);--sh:0 1px 3px rgba(15,43,60,0.06);
+  --sh-md:0 4px 16px rgba(15,43,60,0.08);--sh-lg:0 12px 40px rgba(15,43,60,0.12);
+  --r:8px;--r-lg:14px;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+  --mw:1080px;--spy:5.5rem;
+  --nav-h:52px
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth;font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.72;overflow-x:hidden}
+body.menu-open{overflow:hidden}
+
+/* ── Progress bar ── */
+.progress-bar{position:fixed;top:0;left:0;width:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-light));z-index:1100;transition:width .1s linear}
+
+/* ── Nav ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(250,249,246,0.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
+.nav.scrolled{border-bottom-color:var(--border-l);box-shadow:0 1px 8px rgba(15,43,60,0.04)}
+.nav-inner{max-width:var(--mw);margin:0 auto;padding:0 2rem;display:flex;align-items:center;height:var(--nav-h);gap:1.5rem}
+.nav-brand{font-family:var(--serif);font-weight:700;font-size:.88rem;color:var(--primary);letter-spacing:-.02em;white-space:nowrap;flex-shrink:0}
+.nav-links{display:flex;gap:.15rem;list-style:none;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{display:block;padding:.35rem .6rem;font-size:.72rem;font-weight:500;color:var(--text-m);text-decoration:none;border-radius:6px;white-space:nowrap;transition:color .2s,background .2s;letter-spacing:.01em}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);background:var(--accent-dim)}
+.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:.5rem;color:var(--text)}
+.nav-toggle svg{width:20px;height:20px}
+
+/* ── Mobile nav overlay ── */
+.mobile-overlay{position:fixed;inset:0;z-index:1099;background:rgba(15,43,60,0.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.mobile-overlay.open{opacity:1;pointer-events:auto}
+.mobile-menu{position:fixed;top:0;left:0;right:0;z-index:1101;background:#0F2B3C;color:#fff;transform:translateY(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);max-height:100vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.mobile-menu.open{transform:translateY(0)}
+.mobile-menu-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.mobile-menu-title{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--accent-light)}
+.mobile-menu-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:1.5rem;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .2s,color .2s}
+.mobile-menu-close:hover,.mobile-menu-close:focus{background:rgba(255,255,255,.1);color:#fff}
+.mobile-menu-nav{padding:1rem 0 .5rem}
+.mobile-menu-link{display:flex;align-items:center;gap:.85rem;padding:.85rem 1.5rem;text-decoration:none;color:rgba(255,255,255,.6);transition:background .15s,color .15s;border-left:3px solid transparent}
+.mobile-menu-link:active{background:rgba(255,255,255,.05)}
+.mobile-menu-link.active{color:#fff;border-left-color:var(--accent-light);background:rgba(26,122,122,.12)}
+.mobile-menu-link .mn-num{font-family:var(--mono);font-size:.6rem;font-weight:600;color:var(--accent-light);width:1.5rem;flex-shrink:0;letter-spacing:.02em}
+.mobile-menu-link .mn-name{font-size:.88rem;font-weight:500;letter-spacing:.01em}
+.mobile-menu-divider{height:1px;background:rgba(255,255,255,.08);margin:.5rem 1.5rem}
+.mobile-menu-footer{padding:.75rem 1.5rem 1.25rem}
+.mobile-menu-footer a{display:block;padding:.6rem .85rem;font-size:.78rem;font-weight:500;color:rgba(255,255,255,.45);text-decoration:none;border-radius:6px;transition:color .2s,background .2s}
+.mobile-menu-footer a:hover,.mobile-menu-footer a:active{color:var(--accent-light);background:rgba(255,255,255,.05)}
+
+/* ── Scroll reveal ── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── Hero ── */
+.hero{padding:7.5rem 2rem 4.5rem;background:linear-gradient(170deg,#0B2233 0%,#0F2B3C 35%,#152E40 70%,#1A3D52 100%);color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40%;right:-20%;width:700px;height:700px;background:radial-gradient(circle,rgba(26,122,122,0.12) 0%,transparent 65%);border-radius:50%;pointer-events:none}
+.hero-inner{max-width:var(--mw);margin:0 auto;position:relative;z-index:1}
+.eyebrow{font-family:var(--mono);font-size:.65rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-light);margin-bottom:1.75rem;display:inline-block;padding:.3rem .85rem;border:1px solid rgba(42,168,168,0.25);border-radius:20px}
+.hero h1{font-family:var(--serif);font-size:clamp(1.85rem,4.2vw,3rem);font-weight:700;line-height:1.12;letter-spacing:-.025em;max-width:780px;margin-bottom:1.25rem}
+.hero-decision{font-size:1.05rem;color:rgba(255,255,255,.82);max-width:620px;margin-bottom:2.5rem;line-height:1.65;font-weight:400}
+.hero-decision strong{color:#fff;font-weight:600}
+
+/* ── Headline metric cards ── */
+.hero-headline{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:stretch;margin-bottom:2.5rem}
+.hero-headline-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:1.35rem 1.6rem;min-width:170px;flex:1;transition:transform .2s,box-shadow .2s}
+.hero-headline-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.hero-headline-card.primary{background:rgba(26,122,122,0.18);border-color:rgba(42,168,168,0.3)}
+.hl-value{font-family:var(--serif);font-size:2.2rem;font-weight:800;color:#fff;line-height:1}
+.hero-headline-card.primary .hl-value{color:var(--accent-light)}
+.hl-label{font-size:.72rem;color:rgba(255,255,255,.5);margin-top:.35rem;text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+.hl-sub{font-size:.82rem;color:rgba(255,255,255,.6);margin-top:.5rem;line-height:1.5}
+.hl-sub strong{color:rgba(255,255,255,.85)}
+
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.08);border-radius:var(--r);overflow:hidden;max-width:700px}
+.hero-stat{background:rgba(255,255,255,.03);padding:1rem 1.25rem;text-align:center}
+.hs-value{font-family:var(--serif);font-size:1.3rem;font-weight:700;color:#fff;line-height:1.1}
+.hs-label{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:.2rem;text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+
+/* ── Sections ── */
+.section{padding:var(--spy) 2rem;max-width:var(--mw);margin:0 auto}
+.section-alt{background:var(--bg-alt)}
+.section-label{font-family:var(--mono);font-size:.62rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:.75rem}
+.section h2{font-family:var(--serif);font-size:clamp(1.5rem,2.8vw,2.1rem);font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--primary);margin-bottom:1.5rem}
+.section h3{font-family:var(--sans);font-size:.95rem;font-weight:600;color:var(--primary);margin-bottom:.6rem;margin-top:2.25rem}
+.section h3:first-child{margin-top:0}
+.section p{color:var(--text-s);line-height:1.8;margin-bottom:1rem;max-width:720px}
+
+/* ── Abstract ── */
+.abstract-block{background:var(--bg-card);border-left:3px solid var(--accent);border-radius:0 var(--r-lg) var(--r-lg) 0;padding:2rem 2.5rem;margin:0 auto;max-width:780px;box-shadow:var(--sh)}
+.abstract-sentence{position:relative;padding-left:2rem;margin-bottom:.8rem;color:var(--text-s);line-height:1.8;font-size:.9rem}
+.abstract-sentence:last-child{margin-bottom:0}
+.abstract-sentence .num{position:absolute;left:0;top:.05rem;font-family:var(--mono);font-size:.65rem;font-weight:600;color:var(--accent);width:1.4rem}
+
+/* ── Decision flow ── */
+.decision-flow{max-width:520px;margin:2.5rem 0 1.5rem;position:relative;padding-left:1.75rem}
+.decision-flow::before{content:'';position:absolute;left:4px;top:6px;bottom:12px;width:1.5px;background:var(--border)}
+.df-question{font-family:var(--serif);font-size:clamp(1rem,2vw,1.2rem);font-weight:700;font-style:italic;color:var(--primary);line-height:1.35;margin-bottom:1.75rem;max-width:420px}
+.df-step{position:relative;padding:0 0 1.1rem 1.5rem;font-size:.82rem;color:var(--text-s);line-height:1.55}
+.df-step::before{content:'';position:absolute;left:-1.75rem;top:.4rem;width:8px;height:8px;border-radius:50%;background:var(--border);z-index:1;transition:background .2s}
+.df-step:hover::before{background:var(--accent)}
+.df-step strong{color:var(--primary);font-weight:600}
+.df-step.df-output{color:var(--accent);font-weight:600;font-size:.88rem;padding-top:.1rem}
+.df-step.df-output::before{background:var(--accent);width:10px;height:10px;left:calc(-1.75rem - 1px)}
+.df-step.df-output strong{color:var(--accent)}
+
+/* ── Safety box ── */
+.safety-box{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-radius:var(--r-lg);overflow:hidden;margin:2rem 0;box-shadow:var(--sh)}
+.safety-side{background:var(--bg-card);padding:1.5rem 1.75rem}
+.safety-side h4{font-family:var(--mono);font-size:.65rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem}
+.safety-side.does h4{color:var(--green)}
+.safety-side.doesnot h4{color:var(--red)}
+.safety-side ul{list-style:none;margin:0;padding:0}
+.safety-side li{font-size:.82rem;color:var(--text-s);line-height:1.6;padding:.3rem 0 .3rem 1.1rem;position:relative}
+.safety-side.does li::before{content:'';position:absolute;left:0;top:.65rem;width:6px;height:6px;border-radius:50%;background:var(--green)}
+.safety-side.doesnot li::before{content:'';position:absolute;left:0;top:.65rem;width:6px;height:6px;border-radius:50%;background:var(--red)}
+
+/* ── Data grid ── */
+.data-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:1rem;margin:2rem 0}
+.data-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem 1.25rem;text-align:center;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+.data-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.data-card .number{font-family:var(--serif);font-size:1.85rem;font-weight:700;color:var(--primary);line-height:1.1}
+.data-card .desc{font-size:.72rem;color:var(--text-m);margin-top:.3rem;text-transform:uppercase;letter-spacing:.04em}
+
+/* ── Methodology pipeline ── */
+.pipeline{display:flex;flex-direction:column;gap:0;max-width:600px;margin:2rem auto}
+.pipeline-step{display:flex;align-items:flex-start;gap:1rem;position:relative;cursor:default}
+.pipeline-node{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.65rem;font-weight:600;position:relative;z-index:1;transition:transform .2s,background .2s}
+.pipeline-step:hover .pipeline-node{transform:scale(1.12);background:var(--primary)}
+.pipeline-content{padding:.25rem 0 1.75rem 0;flex:1}
+.pipeline-content strong{display:block;font-size:.88rem;font-weight:600;color:var(--primary);margin-bottom:.1rem}
+.pipeline-content span{font-size:.78rem;color:var(--text-m)}
+.pipeline-hover{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.78rem;color:var(--accent);margin-top:.25rem;line-height:1.5}
+.pipeline-step:hover .pipeline-hover{max-height:80px;opacity:1}
+.pipeline-connector{position:absolute;left:16px;top:34px;bottom:0;width:2px;background:var(--border)}
+.pipeline-step:last-child .pipeline-connector{display:none}
+
+/* ── Tables ── */
+.table-wrap{overflow-x:auto;margin:1.5rem 0;border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--sh);-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;background:var(--bg-card);min-width:480px}
+thead{background:var(--primary);color:#fff}
+thead th{position:sticky;top:0;z-index:2}
+th{padding:.75rem 1rem;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:left;white-space:nowrap}
+td{padding:.7rem 1rem;font-size:.84rem;border-bottom:1px solid var(--border-l);color:var(--text-s);transition:background .15s}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(26,122,122,0.03)}
+.highlight-row td{background:rgba(26,122,122,0.04);font-weight:500;color:var(--text)}
+.metric-highlight{font-family:var(--mono);font-weight:600;color:var(--accent)}
+.metric-secondary{font-family:var(--mono);color:var(--text-m)}
+.table-caption{font-size:.76rem;color:var(--text-m);margin-top:.6rem;font-style:italic;max-width:720px}
+
+/* ── Results hero ── */
+.results-hero{display:grid;grid-template-columns:1fr auto 1fr;gap:1.5rem;align-items:center;margin:2.5rem 0;max-width:750px}
+.results-hero-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:2rem 2.25rem;text-align:center;box-shadow:var(--sh-md);transition:transform .2s,box-shadow .2s}
+.results-hero-card:hover{transform:translateY(-3px);box-shadow:var(--sh-lg)}
+.results-hero-card.primary{border-color:var(--accent);border-width:2px;box-shadow:var(--sh-lg),0 0 0 1px rgba(26,122,122,0.08)}
+.rh-model{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-m);margin-bottom:.5rem}
+.results-hero-card.primary .rh-model{color:var(--accent)}
+.rh-value{font-family:var(--serif);font-size:2.8rem;font-weight:800;color:var(--primary);line-height:1}
+.results-hero-card.primary .rh-value{color:var(--accent)}
+.rh-ci{font-family:var(--mono);font-size:.75rem;color:var(--text-m);margin-top:.3rem}
+.rh-metric{font-size:.78rem;color:var(--text-s);margin-top:.5rem}
+.results-hero-vs{text-align:center}
+.vs-text{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--text-m)}
+.vs-lift{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--green);margin-top:.25rem}
+.vs-baserate{font-size:.72rem;color:var(--text-m);margin-top:.5rem;line-height:1.4}
+
+/* ── Comparison bar chart ── */
+.comparison-bars{margin:2.5rem 0;max-width:620px}
+.comparison-bars h3{margin-top:0;margin-bottom:1.25rem}
+.bar-row{display:grid;grid-template-columns:80px 1fr 60px;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.bar-label{font-family:var(--mono);font-size:.75rem;font-weight:600;color:var(--text-s);text-align:right}
+.bar-label.primary-label{color:var(--accent)}
+.bar-track{height:28px;background:var(--border-l);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;transition:width .8s ease}
+.bar-fill.lr{background:linear-gradient(90deg,var(--accent),var(--accent-light))}
+.bar-fill.rf{background:linear-gradient(90deg,#5A7A8A,#7A9AAA)}
+.bar-fill.baseline{background:linear-gradient(90deg,#A0A0A0,#B8B8B8)}
+.bar-fill.baserate{background:linear-gradient(90deg,#C8C8C8,#D8D8D8)}
+.bar-value{font-family:var(--mono);font-size:.78rem;font-weight:600;color:var(--text)}
+.bar-value.primary-value{color:var(--accent)}
+.bar-legend{display:flex;gap:1.5rem;margin-top:.75rem;flex-wrap:wrap}
+.bar-legend span{font-size:.7rem;color:var(--text-m);display:flex;align-items:center;gap:.35rem}
+.bar-legend span::before{content:'';width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.bar-legend .leg-lr::before{background:var(--accent)}
+.bar-legend .leg-rf::before{background:#5A7A8A}
+.bar-legend .leg-bl::before{background:#A0A0A0}
+.bar-legend .leg-br::before{background:#C8C8C8}
+
+/* ── Figures ── */
+.figure-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin:2rem 0}
+.figure-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .25s,transform .2s;cursor:pointer}
+.figure-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.figure-card img{width:100%;height:auto;display:block}
+.figure-card-body{padding:1rem 1.25rem 1.25rem}
+.figure-card-body h4{font-size:.84rem;font-weight:600;color:var(--primary);margin-bottom:.3rem}
+.figure-card-body p{font-size:.78rem;color:var(--text-m);line-height:1.6;margin-bottom:.4rem}
+.figure-card-body .takeaway{font-size:.76rem;font-weight:500;color:var(--accent);padding-top:.4rem;border-top:1px solid var(--border-l);margin-bottom:0}
+
+/* ── Lightbox ── */
+.lightbox{position:fixed;inset:0;z-index:2000;background:rgba(15,43,60,0.92);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease;backdrop-filter:blur(8px)}
+.lightbox.open{opacity:1;pointer-events:auto}
+.lightbox img{max-width:90vw;max-height:85vh;border-radius:var(--r);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.lightbox-close{position:absolute;top:1.5rem;right:1.5rem;background:none;border:none;color:#fff;font-size:1.8rem;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .2s}
+.lightbox-close:hover{background:rgba(255,255,255,0.15)}
+.lightbox-caption{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.85);font-size:.85rem;text-align:center;max-width:600px}
+
+/* ── Tier grid ── */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin:2rem 0}
+.tier-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:2rem 1.75rem;position:relative;overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+.tier-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.tier-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+.tier-card.review::before{background:var(--accent)}
+.tier-card.monitor::before{background:var(--amber)}
+.tier-card.deprioritise::before{background:var(--text-m)}
+.tier-card.review{border-color:rgba(26,122,122,0.25);box-shadow:var(--sh),0 0 0 1px rgba(26,122,122,0.06)}
+.tier-card.review::before{height:5px}
+.tier-label{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem}
+.tier-card.review .tier-label{color:var(--accent)}
+.tier-card.monitor .tier-label{color:var(--amber)}
+.tier-card.deprioritise .tier-label{color:var(--text-m)}
+.tier-count{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--primary);line-height:1.1}
+.tier-card.review .tier-count{color:var(--accent)}
+.tier-pct{font-size:.76rem;color:var(--text-m);margin-bottom:.75rem}
+.tier-desc{font-size:.82rem;color:var(--text-s);line-height:1.6}
+.tier-action{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.76rem;color:var(--accent);margin-top:.5rem;line-height:1.5;font-weight:500}
+.tier-card:hover .tier-action{max-height:60px;opacity:1}
+
+/* ── Limitations ── */
+.limitation-list{list-style:none;counter-reset:lim;max-width:780px;margin:2rem 0}
+.limitation-list li{counter-increment:lim;position:relative;padding:1.25rem 1.25rem 1.25rem 3.4rem;margin-bottom:.75rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);font-size:.84rem;color:var(--text-s);line-height:1.65;box-shadow:var(--sh-xs);transition:box-shadow .2s}
+.limitation-list li:hover{box-shadow:var(--sh)}
+.limitation-list li::before{content:counter(lim);position:absolute;left:1.1rem;top:1.25rem;font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--accent);width:1.4rem;text-align:center}
+.limitation-list li strong{color:var(--text);display:block;margin-bottom:.2rem;font-size:.88rem}
+
+/* ── Recommendations ── */
+.rec-list{list-style:none;max-width:780px;margin:2rem 0}
+.rec-list li{display:flex;gap:1rem;align-items:flex-start;padding:1.1rem 0;border-bottom:1px solid var(--border-l)}
+.rec-list li:last-child{border-bottom:none}
+.rec-num{font-family:var(--mono);font-size:.65rem;font-weight:600;color:var(--accent);background:rgba(26,122,122,0.08);border-radius:6px;padding:.3rem .55rem;flex-shrink:0;margin-top:.15rem}
+.rec-body strong{display:block;font-size:.9rem;color:var(--primary);margin-bottom:.25rem}
+.rec-body span{font-size:.82rem;color:var(--text-s);line-height:1.6}
+.rec-signal{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .2s ease;opacity:0;font-size:.74rem;color:var(--accent);margin-top:.3rem;line-height:1.5}
+.rec-list li:hover .rec-signal{max-height:50px;opacity:1}
+
+/* ── Evidence chain ── */
+.evidence-chain{display:flex;flex-wrap:wrap;gap:.6rem;margin:2rem 0;align-items:center}
+.evidence-node{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1.1rem;flex:1;min-width:120px;box-shadow:var(--sh-xs);text-align:center}
+.evidence-node .week{font-family:var(--mono);font-size:.6rem;font-weight:600;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.15rem}
+.evidence-node .title{font-size:.76rem;font-weight:600;color:var(--primary);margin-bottom:.1rem}
+.evidence-node .desc{font-size:.66rem;color:var(--text-m)}
+.evidence-arrow{display:flex;align-items:center;color:var(--text-m);font-size:.9rem;flex-shrink:0}
+
+/* ── GroupKFold note ── */
+.groupkfold-note{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.4rem;margin:1.5rem 0;font-size:.82rem;color:var(--text-s);line-height:1.65;box-shadow:var(--sh-xs)}
+.groupkfold-note strong{color:var(--text)}
+
+/* ── Acknowledgments ── */
+.ack-team{margin:1.5rem 0;max-width:600px}
+.ack-person{padding:.85rem 0;border-bottom:1px solid var(--border-l);font-size:.88rem;color:var(--text-s);line-height:1.6}
+.ack-person:last-child{border-bottom:none}
+.ack-person strong{color:var(--text);font-weight:600}
+.ack-person .ack-role{font-size:.78rem;color:var(--text-m);margin-top:.1rem}
+
+/* ── Footer ── */
+.footer{background:var(--primary);color:rgba(255,255,255,.6);padding:3rem 2rem;text-align:center;font-size:.78rem;line-height:1.8}
+.footer a{color:var(--accent-light);text-decoration:none}
+.footer a:hover{text-decoration:underline}
+
+/* ═══════ RESPONSIVE ═══════ */
+
+/* ── Tablet ── */
+@media(max-width:900px){
+  .results-hero{grid-template-columns:1fr;gap:1rem}
+  .results-hero-vs{order:-1}
+  .tier-grid{grid-template-columns:1fr}
+  .safety-box{grid-template-columns:1fr}
+  .bar-row{grid-template-columns:70px 1fr 55px}
+}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  :root{--spy:3.5rem}
+  .nav-links{display:none}
+  .nav-toggle{display:block;margin-left:auto}
+  .hero{padding:6rem 1.25rem 3rem}
+  .hero h1{font-size:1.5rem;line-height:1.18}
+  .hero-decision{font-size:.92rem;margin-bottom:2rem}
+  .eyebrow{font-size:.58rem;margin-bottom:1.25rem}
+  .hero-headline{flex-direction:column;gap:.85rem}
+  .hero-headline-card{min-width:auto;padding:1.15rem 1.25rem}
+  .hero-headline-card .hl-value{font-size:1.85rem}
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+  .hero-stat{padding:.8rem 1rem}
+  .hs-value{font-size:1.1rem}
+  .hs-label{font-size:.6rem}
+  .abstract-block{padding:1.5rem 1.25rem;border-radius:0 var(--r) var(--r) 0}
+  .abstract-sentence{padding-left:1.6rem;font-size:.84rem}
+  .section{padding:var(--spy) 1.25rem}
+  .section h2{font-size:1.35rem}
+  .section p{font-size:.88rem;line-height:1.75}
+  .data-grid{grid-template-columns:repeat(2,1fr);gap:.75rem}
+  .data-card{padding:1.25rem 1rem}
+  .data-card .number{font-size:1.5rem}
+  .data-card .desc{font-size:.66rem}
+  .pipeline{margin:1.5rem auto}
+  .pipeline-content{padding-bottom:1.25rem}
+  .pipeline-content strong{font-size:.82rem}
+  .pipeline-content span{font-size:.74rem}
+  .pipeline-hover{font-size:.74rem}
+  .decision-flow{max-width:100%;margin:2rem 0 1rem}
+  .df-question{font-size:.92rem}
+  .df-step{font-size:.78rem}
+  .results-hero{margin:2rem 0}
+  .results-hero-card{padding:1.5rem 1.25rem}
+  .rh-value{font-size:2.2rem}
+  .rh-model{font-size:.55rem}
+  .comparison-bars{margin:2rem 0}
+  .bar-row{grid-template-columns:60px 1fr 50px;gap:.5rem}
+  .bar-label{font-size:.68rem}
+  .bar-value{font-size:.7rem}
+  .bar-track{height:24px}
+  .figure-grid{grid-template-columns:1fr}
+  .figure-card-body{padding:.85rem 1rem 1rem}
+  .tier-grid{grid-template-columns:1fr;gap:.85rem}
+  .tier-card{padding:1.5rem 1.25rem}
+  .limitation-list li{padding:1rem 1rem 1rem 2.8rem;font-size:.82rem}
+  .limitation-list li::before{top:1rem;left:.9rem}
+  .limitation-list li strong{font-size:.84rem}
+  .rec-list li{padding:.9rem 0;gap:.75rem}
+  .rec-body strong{font-size:.86rem}
+  .rec-body span{font-size:.8rem}
+  .evidence-chain{flex-direction:column;gap:.5rem}
+  .evidence-arrow{transform:rotate(90deg);justify-content:center}
+  .evidence-node{min-width:auto;width:100%}
+  .groupkfold-note{font-size:.78rem;padding:1rem 1.15rem}
+  .safety-side{padding:1.25rem}
+  .safety-side li{font-size:.78rem}
+  .ack-person{font-size:.84rem}
+  .footer{padding:2rem 1.25rem}
+}
+
+/* ── Small mobile ── */
+@media(max-width:480px){
+  .hero{padding:5.5rem 1rem 2.5rem}
+  .hero h1{font-size:1.32rem}
+  .hero-headline-card .hl-value{font-size:1.65rem}
+  .hero-headline-card{padding:1rem}
+  .hero-stats{grid-template-columns:1fr 1fr}
+  .hero-stat{padding:.65rem .75rem}
+  .data-grid{grid-template-columns:1fr}
+  .rh-value{font-size:1.85rem}
+  .results-hero-card{padding:1.25rem 1rem}
+  .bar-row{grid-template-columns:52px 1fr 44px}
+}
+
+/* ── Touch: show hover-only content by default ── */
+@media(hover:none)and(pointer:coarse){
+  .pipeline-hover{max-height:80px;opacity:1}
+  .tier-action{max-height:60px;opacity:1}
+  .rec-signal{max-height:50px;opacity:1}
+  .hero-headline-card:hover{transform:none;box-shadow:none}
+  .data-card:hover{transform:none;box-shadow:var(--sh)}
+  .figure-card:hover{transform:none;box-shadow:var(--sh)}
+  .results-hero-card:hover{transform:none;box-shadow:var(--sh-md)}
+  .tier-card:hover{transform:none;box-shadow:var(--sh)}
+  .limitation-list li:hover{box-shadow:var(--sh-xs)}
+}
+
+/* ── Touch-friendly tap targets ── */
+@media(hover:none)and(pointer:coarse){
+  .nav-toggle{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  .mobile-menu-link{min-height:48px;padding:1rem 1.5rem}
+  .mobile-menu-close{min-width:44px;min-height:44px}
+  .lightbox-close{min-width:48px;min-height:48px}
+  .figure-card{min-height:44px}
+}
+</style>
+</head>
+<body>
+
+<!-- Scroll progress bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- ═══════ NAV ═══════ -->
+<nav class="nav" id="nav" role="navigation" aria-label="Section navigation">
+  <div class="nav-inner">
+    <div class="nav-brand">FlyRank Capstone</div>
+    <button class="nav-toggle" id="navToggle" aria-label="Open navigation menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#hero">Abstract</a></li>
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#data">Data</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#limits">Limits</a></li>
+      <li><a href="#actions">Actions</a></li>
+      <li><a href="#repro">Repro</a></li>
+      <li><a href="#acknowledgments">Credit</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ═══════ MOBILE MENU ═══════ -->
+<div class="mobile-overlay" id="mobileOverlay"></div>
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Navigation menu" aria-hidden="true">
+  <div class="mobile-menu-header">
+    <span class="mobile-menu-title">Capstone Navigation</span>
+    <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close navigation menu">&times;</button>
+  </div>
+  <nav class="mobile-menu-nav" aria-label="Section navigation">
+    <a class="mobile-menu-link" href="#hero" data-section="hero"><span class="mn-num">01</span><span class="mn-name">Abstract</span></a>
+    <a class="mobile-menu-link" href="#problem" data-section="problem"><span class="mn-num">02</span><span class="mn-name">Problem</span></a>
+    <a class="mobile-menu-link" href="#data" data-section="data"><span class="mn-num">03</span><span class="mn-name">Data</span></a>
+    <a class="mobile-menu-link" href="#method" data-section="method"><span class="mn-num">04</span><span class="mn-name">Methodology</span></a>
+    <a class="mobile-menu-link" href="#results" data-section="results"><span class="mn-num">05</span><span class="mn-name">Results</span></a>
+    <a class="mobile-menu-link" href="#limits" data-section="limits"><span class="mn-num">06</span><span class="mn-name">Limitations</span></a>
+    <a class="mobile-menu-link" href="#actions" data-section="actions"><span class="mn-num">07</span><span class="mn-name">Recommendations</span></a>
+    <a class="mobile-menu-link" href="#repro" data-section="repro"><span class="mn-num">08</span><span class="mn-name">Reproducibility</span></a>
+    <div class="mobile-menu-divider"></div>
+    <a class="mobile-menu-link" href="#acknowledgments" data-section="acknowledgments"><span class="mn-num">09</span><span class="mn-name">Credit</span></a>
+  </nav>
+  <div class="mobile-menu-footer">
+    <a href="#hero">Ranking Pages for Content Review</a>
+  </div>
+</div>
+
+<!-- ═══════ 01 — TITLE + ABSTRACT ═══════ -->
+<header class="hero" id="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">FlyRank ML Internship · Capstone</div>
+    <h1>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility Signals</h1>
+    <p class="hero-decision"><strong>Which pages should a human SEO reviewer inspect first?</strong> A ranked review queue built from observed search-visibility patterns across a 331,437-page portfolio.</p>
+
+    <div class="hero-headline">
+      <div class="hero-headline-card primary">
+        <div class="hl-value">0.971</div>
+        <div class="hl-label">LR P@1000</div>
+        <div class="hl-sub"><strong>Logistic Regression</strong> — primary model</div>
+      </div>
+      <div class="hero-headline-card">
+        <div class="hl-value">0.828</div>
+        <div class="hl-label">Baseline P@1000</div>
+        <div class="hl-sub"><strong>Rule-based</strong> — transparent baseline</div>
+      </div>
+      <div class="hero-headline-card">
+        <div class="hl-value" style="color:var(--green)">≈1.17×</div>
+        <div class="hl-label">Lift</div>
+        <div class="hl-sub">LR over baseline<br>Base rate: <strong>32.6%</strong></div>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hs-value">331,437</div><div class="hs-label">Pages</div></div>
+      <div class="hero-stat"><div class="hs-value">55</div><div class="hs-label">Clients</div></div>
+      <div class="hero-stat"><div class="hs-value">Mar 2026</div><div class="hs-label">Window</div></div>
+      <div class="hero-stat"><div class="hs-value">5-Fold</div><div class="hs-label">Grouped CV</div></div>
+    </div>
+
+    <div class="abstract-block" style="margin-top:2.5rem">
+      <div class="abstract-sentence"><span class="num">1</span> SEO and content teams cannot manually inspect every page in a large inventory, creating a need for systematic prioritization.</div>
+      <div class="abstract-sentence"><span class="num">2</span> This study builds a decision-support system on 331,437 aggregated pages across 55 clients, using two March 2026 search-visibility features: impression volume and average search position.</div>
+      <div class="abstract-sentence"><span class="num">3</span> A Logistic Regression validated with client-grouped cross-validation achieves P@1000 of 0.971 ± 0.030 vs 0.828 ± 0.119 baseline (≈1.17× lift).</div>
+      <div class="abstract-sentence"><span class="num">4</span> Output is a ranked review queue with reason codes and behavioral archetypes — a decision-support tool, not an autonomous optimizer.</div>
+      <div class="abstract-sentence"><span class="num">5</span> No causal claims are made; findings are directional and specific to this portfolio and time window.</div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════ 02 — PROBLEM ═══════ -->
+<section class="section section-alt reveal" id="problem">
+  <div class="section-label">02 — Introduction</div>
+  <h2>The Decision Problem</h2>
+  <p>A portfolio of hundreds of thousands of pages cannot be reviewed at uniform depth. This is a <strong>triage problem</strong>: given limited review capacity, which pages deserve human inspection first?</p>
+  <p>Not an automation problem — editorial judgment remains essential. A <strong>ranked review queue</strong> scored by a model identifies where human review is most likely to be productive.</p>
+
+  <div class="decision-flow">
+    <div class="df-question">Which pages should a human SEO reviewer inspect first?</div>
+    <div class="df-step">331,437 page/client observations</div>
+    <div class="df-step">Decision-time search visibility signals</div>
+    <div class="df-step">5-fold client-grouped validation</div>
+    <div class="df-step">Logistic regression ranking</div>
+    <div class="df-step df-output"><strong>Top 1,000 → review</strong></div>
+  </div>
+
+  <div class="safety-box">
+    <div class="safety-side does">
+      <h4>DOES</h4>
+      <ul>
+        <li>Rank pages by observed search-visibility patterns</li>
+        <li>Produce a prioritized queue for human inspection</li>
+        <li>Provide decision-support with reason codes</li>
+      </ul>
+    </div>
+    <div class="safety-side doesnot">
+      <h4>DOES NOT</h4>
+      <ul>
+        <li>Prove causal impact of content changes</li>
+        <li>Predict Google's algorithm or ranking factors</li>
+        <li>Guarantee content-refresh success</li>
+      </ul>
+    </div>
+  </div>
+  <p style="font-size:.82rem;color:var(--text-m)">FlyRank ML internship. All client names, domains, URLs, and private queries removed.</p>
+</section>
+
+<!-- ═══════ 03 — DATA ═══════ -->
+<section class="section reveal" id="data">
+  <div class="section-label">03 — Data</div>
+  <h2>The Dataset</h2>
+
+  <div class="data-grid">
+    <div class="data-card"><div class="number">331,437</div><div class="desc">Aggregated Pages</div></div>
+    <div class="data-card"><div class="number">55</div><div class="desc">Clients</div></div>
+    <div class="data-card"><div class="number">31</div><div class="desc">Days (March 2026)</div></div>
+    <div class="data-card"><div class="number">32.6%</div><div class="desc">Opportunity Base Rate</div></div>
+  </div>
+
+  <p>331,437 page-level records from the March 2026 partition of FlyRank's pseudonymized warehouse, aggregated from ~9.8M daily fact rows. Each record = one content page within one pseudonymized client.</p>
+
+  <h3>Features</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Feature</th><th>Description</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td><code>march_gsc_impressions</code></td><td>Total GSC impressions across March 2026</td><td>Primary signal of search demand</td></tr>
+        <tr><td><code>march_gsc_avg_position</code></td><td>Mean ranking position (days with pos ≤ 0 excluded)</td><td>Deeper positions have different opportunity profiles; independent of label</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="table-caption">Both features observable at decision time. No label-derived, future, or product-decision features used.</p>
+
+  <h3>Exclusions</h3>
+  <p><strong>Client identifiers, URLs, queries:</strong> removed during pseudonymization. <strong>Product-decision flags</strong> (<code>health_score</code>, <code>priority_score</code>): excluded so the model learns from signals, not product decisions. <strong>Zero-impression rows:</strong> no search presence. <strong>GA4-only features:</strong> ~4% coverage, excluded to avoid noise.</p>
+</section>
+
+<!-- ═══════ 04 — METHOD ═══════ -->
+<section class="section section-alt reveal" id="method">
+  <div class="section-label">04 — Methodology</div>
+  <h2>Methodology</h2>
+
+  <div class="pipeline">
+    <div class="pipeline-step">
+      <div class="pipeline-node">1</div>
+      <div class="pipeline-content">
+        <strong>Research Question</strong>
+        <span>Which pages should a human reviewer inspect first?</span>
+        <div class="pipeline-hover">Defines the scope: prioritization, not prediction or optimization.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">2</div>
+      <div class="pipeline-content">
+        <strong>March 2026 Data</strong>
+        <span>9.8M daily rows → 331,437 page-level records</span>
+        <div class="pipeline-hover">Single-month cross-section. No longitudinal or seasonal signal captured.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">3</div>
+      <div class="pipeline-content">
+        <strong>Page-Level Features</strong>
+        <span>Impressions + average search position</span>
+        <div class="pipeline-hover">Two observable signals. No label-derived, future, or product-decision features.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">4</div>
+      <div class="pipeline-content">
+        <strong>Transparent Baseline</strong>
+        <span>Rule-based position + impression scoring</span>
+        <div class="pipeline-hover">What a human analyst might build without ML. Fixed thresholds, fully interpretable.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">5</div>
+      <div class="pipeline-content">
+        <strong>Logistic Regression</strong>
+        <span>Primary model — calibrated probability scores</span>
+        <div class="pipeline-hover">scikit-learn LogisticRegression, max_iter=1000, StandardScaler fitted on training fold only.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">6</div>
+      <div class="pipeline-content">
+        <strong>5-Fold Grouped Validation</strong>
+        <span>GroupKFold by client — zero client overlap</span>
+        <div class="pipeline-hover">Each fold: ~44 clients train, ~11 test. Tests generalization to unseen clients, not just unseen pages.</div>
+      </div>
+      <div class="pipeline-connector"></div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-node">7</div>
+      <div class="pipeline-content">
+        <strong>Ranked Review Queue</strong>
+        <span>Top 1,000 pages for human inspection</span>
+        <div class="pipeline-hover">The final output: an ordered list scored by LR probability, ready for human triage.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="groupkfold-note">
+    <strong>GroupKFold:</strong> Grouped by <code>client_hash_id</code> (55 clients). Each fold holds out ~11 clients entirely. No client appears in both train and test. This tests generalization to <em>unseen clients</em>.
+  </div>
+
+  <h3>Label Definition</h3>
+  <p><code>opportunity_proxy = (impressions &gt; 0) &amp; (clicks == 0)</code>. A page is proxy-positive when it has impressions but zero clicks. <strong>This is a proxy, not a future prediction target.</strong> Base rate: 32.6%.</p>
+
+  <h3>Baseline &amp; Models</h3>
+  <p><strong>Baseline:</strong> Rule-based scoring combining position and impression thresholds. <strong>Logistic Regression (primary):</strong> <code>max_iter=1000</code>, <code>random_state=42</code>, features standardized via <code>StandardScaler</code> (training fold only). <strong>Random Forest (secondary):</strong> 100 estimators, same GroupKFold structure.</p>
+
+  <h3>Leakage Audit</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Future-window inputs</td><td><span style="color:var(--green);font-weight:600">PASS</span> — March 2026 only</td></tr>
+        <tr><td>Label-derived features</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Clicks and CTR excluded</td></tr>
+        <tr><td>Product flags</td><td><span style="color:var(--green);font-weight:600">PASS</span> — No product-decision flags</td></tr>
+        <tr><td>Target-derived fields</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Trend fields excluded</td></tr>
+        <tr><td>Train/test separation</td><td><span style="color:var(--green);font-weight:600">PASS</span> — GroupKFold, zero overlap</td></tr>
+        <tr><td>Preprocessing</td><td><span style="color:var(--green);font-weight:600">PASS</span> — Scaler fitted on train only</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════ 05 — RESULTS ═══════ -->
+<section class="section reveal" id="results">
+  <div class="section-label">05 — Results</div>
+  <h2>Results</h2>
+
+  <p>All methods evaluated on the same GroupKFold splits with the same Precision@K metric.</p>
+
+  <div class="results-hero">
+    <div class="results-hero-card primary">
+      <div class="rh-model">Logistic Regression · Primary</div>
+      <div class="rh-value">0.971</div>
+      <div class="rh-ci">± 0.030</div>
+      <div class="rh-metric">Precision@1000</div>
+    </div>
+    <div class="results-hero-vs">
+      <div class="vs-text">vs</div>
+      <div class="vs-lift">≈1.17× lift</div>
+      <div class="vs-baserate">Base rate: 32.6%</div>
+    </div>
+    <div class="results-hero-card">
+      <div class="rh-model">Baseline · Rule-based</div>
+      <div class="rh-value">0.828</div>
+      <div class="rh-ci">± 0.119</div>
+      <div class="rh-metric">Precision@1000</div>
+    </div>
+  </div>
+
+  <div class="comparison-bars">
+    <h3>Precision@1000 Comparison</h3>
+    <div class="bar-row">
+      <div class="bar-label primary-label">LR</div>
+      <div class="bar-track"><div class="bar-fill lr" style="width:97.1%"></div></div>
+      <div class="bar-value primary-value">0.971</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">RF</div>
+      <div class="bar-track"><div class="bar-fill rf" style="width:95.3%"></div></div>
+      <div class="bar-value">0.953</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Baseline</div>
+      <div class="bar-track"><div class="bar-fill baseline" style="width:82.8%"></div></div>
+      <div class="bar-value">0.828</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Base rate</div>
+      <div class="bar-track"><div class="bar-fill baserate" style="width:32.6%"></div></div>
+      <div class="bar-value">0.326</div>
+    </div>
+    <div class="bar-legend">
+      <span class="leg-lr">Primary (LR)</span>
+      <span class="leg-rf">Secondary (RF)</span>
+      <span class="leg-bl">Rule-based baseline</span>
+      <span class="leg-br">Base rate</span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Method</th><th>P@100</th><th>P@500</th><th>P@1000</th><th>P@5000</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Baseline (rule-based)</td>
+          <td class="metric-secondary">0.746 ± 0.105</td>
+          <td class="metric-secondary">0.821 ± 0.124</td>
+          <td class="metric-secondary">0.828 ± 0.119</td>
+          <td class="metric-secondary">0.702 ± 0.156</td>
+        </tr>
+        <tr class="highlight-row">
+          <td><strong>Logistic Regression</strong> <span style="font-size:.62rem;color:var(--accent);font-weight:600">PRIMARY</span></td>
+          <td class="metric-highlight">0.992 ± 0.016</td>
+          <td class="metric-highlight">0.982 ± 0.025</td>
+          <td class="metric-highlight">0.971 ± 0.030</td>
+          <td class="metric-highlight">0.910 ± 0.053</td>
+        </tr>
+        <tr>
+          <td>Random Forest <span style="font-size:.62rem;color:var(--text-m);font-weight:500">SECONDARY</span></td>
+          <td class="metric-secondary">0.964 ± 0.024</td>
+          <td class="metric-secondary">0.951 ± 0.014</td>
+          <td class="metric-secondary">0.953 ± 0.011</td>
+          <td class="metric-secondary">0.948 ± 0.016</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="table-caption">Base rate: 32.6%. All metrics out-of-client-fold (5-fold GroupKFold, grouped by client_hash_id).</p>
+
+  <p>LR P@100 = 0.992: ~99 of its top 100 ranked pages are proxy-positive. At P@1000, 0.971 vs 0.828 baseline = <strong>≈1.17× lift</strong>. The RF achieves 0.953 ± 0.011 at P@1000 with lower variance, but LR was independently audited (Week 6) and used for the Week 7 action queue — making it the <strong>primary decision-support model</strong>.</p>
+
+  <h3>Queue Overlap</h3>
+  <p>LR and baseline top-1000 queues share only <strong>6 pages (0.6%)</strong>. The two methods identify fundamentally different pages as highest priority.</p>
+
+  <h3>Feature Importance</h3>
+  <p><strong>LR coefficients (scaled):</strong> <code>march_gsc_impressions</code> = −4.912 (negative due to fillna(0); within impressions>0 subset, higher impressions raise probability); <code>march_gsc_avg_position</code> = +2.815 (deeper positions increase predicted probability).</p>
+
+  <h3>Visual Results</h3>
+  <div class="figure-grid">
+    <div class="figure-card" data-fig="figures/action_distribution.png" data-cap="Action tier distribution: REVIEW, MONITOR, DEPRIORITISE">
+      <img src="figures/action_distribution.png" alt="Action tier distribution" loading="lazy">
+      <div class="figure-card-body">
+        <h4>Action Tier Distribution</h4>
+        <p>REVIEW (1,000), MONITOR (174,304), DEPRIORITISE (156,133).</p>
+        <div class="takeaway">The model concentrates highest-priority pages into a manageable 1,000-page batch.</div>
+      </div>
+    </div>
+    <div class="figure-card" data-fig="figures/archetype_breakdown.png" data-cap="Behavioral archetype breakdown across 331,437 pages">
+      <img src="figures/archetype_breakdown.png" alt="Archetype breakdown" loading="lazy">
+      <div class="figure-card-body">
+        <h4>Archetype Breakdown</h4>
+        <p>Ghost (46.7%), Already performing (29.2%), Hidden gems (16.9%), Emerging (6.6%).</p>
+        <div class="takeaway">Nearly half the portfolio has no search visibility; hidden gems are the primary review opportunity.</div>
+      </div>
+    </div>
+    <div class="figure-card" data-fig="figures/queue_vs_baseline_overlap.png" data-cap="LR vs baseline queue overlap">
+      <img src="figures/queue_vs_baseline_overlap.png" alt="Queue overlap" loading="lazy">
+      <div class="figure-card-body">
+        <h4>Queue vs. Baseline Overlap</h4>
+        <p>Only 6 shared pages (0.6%). 994 unique to each method.</p>
+        <div class="takeaway">Learned ranking captures patterns that fixed thresholds miss.</div>
+      </div>
+    </div>
+    <div class="figure-card" data-fig="figures/client_concentration.png" data-cap="Client distribution in top-1000 queue">
+      <img src="figures/client_concentration.png" alt="Client concentration" loading="lazy">
+      <div class="figure-card-body">
+        <h4>Client Concentration</h4>
+        <p>One client contributes 50% of the top-1000 queue.</p>
+        <div class="takeaway">Operational consideration: queue deployment should account for client concentration.</div>
+      </div>
+    </div>
+    <div class="figure-card" data-fig="figures/confidence_distribution.png" data-cap="Data-signal confidence tiers">
+      <img src="figures/confidence_distribution.png" alt="Confidence distribution" loading="lazy">
+      <div class="figure-card-body">
+        <h4>Confidence Distribution</h4>
+        <p>HIGH (84,709), MODERATE (90,595), LOW (156,133).</p>
+        <div class="takeaway">~25.6% of pages have rich signal; LOW-confidence tier should be treated with caution.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 — LIMITATIONS ═══════ -->
+<section class="section section-alt reveal" id="limits">
+  <div class="section-label">06 — Limitations</div>
+  <h2>What This Study Does Not Claim</h2>
+  <p style="margin-bottom:1.5rem">Limitations are presented prominently because honest framing makes the result trustworthy.</p>
+
+  <ol class="limitation-list">
+    <li><strong>Proxy &amp; Label Construction</strong> The target (<code>opportunity_proxy</code>) is constructed from the same March 2026 window as features. <code>impressions &gt; 0</code> appears in both the feature set and the label definition, creating a structural relationship. Precision@K is partly influenced by this overlap. This is not a clean future prediction target.</li>
+    <li><strong>Generalization &amp; Client Concentration</strong> GroupKFold with 55 clients tests across groups within one portfolio; results may not generalize to different industries or search landscapes. One client dominates ~50% of the top-1000 queue. Random Forest was evaluated in Week 5 but not independently audited in Week 6 and not used for the Week 7 action queue.</li>
+    <li><strong>Observational &amp; Non-Causal</strong> All associations are observed in search data only. No causality is established. The output is a ranked review queue, not prescribed actions; human judgment remains essential for every editorial decision.</li>
+    <li><strong>Single Window &amp; Production Scope</strong> Only March 2026 data — no seasonal, trend, or longitudinal patterns captured. Production deployment requires accounting for client concentration and ongoing signal monitoring. Results are directional evidence for similar triage tasks, not general-purpose SEO prediction.</li>
+  </ol>
+</section>
+
+<!-- ═══════ 07 — RANKED RECOMMENDATIONS ═══════ -->
+<section class="section reveal" id="actions">
+  <div class="section-label">07 — Ranked Recommendations</div>
+  <h2>Action Playbook</h2>
+  <p><code>LR score → ranked queue → reason codes + archetype → human review action</code></p>
+  <p>The model's output is a ranked decision queue for human review, not a causal prediction of search-engine behavior.</p>
+
+  <div class="tier-grid">
+    <div class="tier-card review">
+      <div class="tier-label">Review</div>
+      <div class="tier-count">1,000</div>
+      <div class="tier-pct">0.3% of portfolio</div>
+      <div class="tier-desc">Top-ranked pages — the primary human-review queue. Each page has a reason code and behavioral archetype to guide investigation.</div>
+      <div class="tier-action">→ Start here. ~971 of 1,000 are proxy-positive under evaluation.</div>
+    </div>
+    <div class="tier-card monitor">
+      <div class="tier-label">Monitor</div>
+      <div class="tier-count">174,304</div>
+      <div class="tier-pct">52.6% of portfolio</div>
+      <div class="tier-desc">Observable search signal (impressions &gt; 0, position available) but outside the primary queue. Watch for signal changes.</div>
+      <div class="tier-action">→ Track for impression or position shifts that might elevate priority.</div>
+    </div>
+    <div class="tier-card deprioritise">
+      <div class="tier-label">Deprioritise</div>
+      <div class="tier-count">156,133</div>
+      <div class="tier-pct">47.1% of portfolio</div>
+      <div class="tier-desc">Insufficient signal or already performing well. Low priority for human review given limited capacity.</div>
+      <div class="tier-action">→ Revisit only after exhausting REVIEW and MONITOR tiers.</div>
+    </div>
+  </div>
+
+  <h3>Behavioral Archetypes</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Archetype</th><th>What It Means</th><th>Review Direction</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Hidden gems</strong> (56,049)</td><td>Impressions &gt; 0, clicks = 0, position &gt; 10</td><td>Content alignment, title/meta improvements</td></tr>
+        <tr><td><strong>Deep rankers</strong> (606)</td><td>Position &gt; 50, impressions &gt; 0</td><td>Competitive query targeting, structural SEO</td></tr>
+        <tr><td><strong>Emerging</strong> (21,867)</td><td>Low impressions, position 11–50</td><td>Monitor for growth; verify topic targeting</td></tr>
+        <tr><td><strong>Already performing</strong> (96,782)</td><td>Position ≤ 10, clicks &gt; 0</td><td>Low priority; monitor for drift</td></tr>
+        <tr><td><strong>Ghost pages</strong> (154,699)</td><td>Impressions = 0</td><td>Check indexing, crawlability, technical issues</td></tr>
+        <tr><td><strong>Data gaps</strong> (1,434)</td><td>Position missing, impressions &gt; 0</td><td>Investigate data availability</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Recommendations</h3>
+  <ol class="rec-list">
+    <li>
+      <span class="rec-num">01</span>
+      <div class="rec-body">
+        <strong>Start with the top-ranked pages</strong>
+        <span>The 1,000-page REVIEW tier. ~971 proxy-positive under evaluation — pages with impressions but no clicks.</span>
+        <div class="rec-signal">Signal: impressions present, no clicks → Action: content/metadata review → Rationale: highest probability of productive human intervention</div>
+      </div>
+    </li>
+    <li>
+      <span class="rec-num">02</span>
+      <div class="rec-body">
+        <strong>Use reason codes and archetypes</strong>
+        <span>Each page has a reason code and behavioral archetype providing starting context for the human reviewer.</span>
+        <div class="rec-signal">Signal: position + impression combination → Action: archetype-guided investigation → Rationale: different patterns require different review approaches</div>
+      </div>
+    </li>
+    <li>
+      <span class="rec-num">03</span>
+      <div class="rec-body">
+        <strong>Monitor the middle tier</strong>
+        <span>174,304 MONITOR pages have observable signal. Track for changes that might elevate priority.</span>
+        <div class="rec-signal">Signal: impressions &gt; 0 but below REVIEW threshold → Action: periodic reassessment → Rationale: position shifts may surface new opportunities</div>
+      </div>
+    </li>
+    <li>
+      <span class="rec-num">04</span>
+      <div class="rec-body">
+        <strong>Maintain human judgment</strong>
+        <span>The model scores where to look; the human decides what to do. Publishing, rewriting, merging, pruning all require editorial judgment.</span>
+        <div class="rec-signal">Signal: model output is a rank, not a decision → Action: human review as final step → Rationale: editorial context cannot be automated</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ═══════ 08 — REPRODUCIBILITY ═══════ -->
+<section class="section section-alt reveal" id="repro">
+  <div class="section-label">08 — Reproducibility</div>
+  <h2>Evidence Chain</h2>
+
+  <div class="evidence-chain">
+    <div class="evidence-node"><div class="week">W03</div><div class="title">Data Contract</div><div class="desc">Schema, access, exclusions</div></div>
+    <div class="evidence-arrow">→</div>
+    <div class="evidence-node"><div class="week">W04</div><div class="title">Baseline + Signal Audit</div><div class="desc">Rule-based scoring, signal verdicts</div></div>
+    <div class="evidence-arrow">→</div>
+    <div class="evidence-node"><div class="week">W05</div><div class="title">Modeling</div><div class="desc">LR, RF, GroupKFold comparison</div></div>
+    <div class="evidence-arrow">→</div>
+    <div class="evidence-node"><div class="week">W06</div><div class="title">Validation Audit</div><div class="desc">Independent LR audit, leakage checks</div></div>
+    <div class="evidence-arrow">→</div>
+    <div class="evidence-node"><div class="week">W07</div><div class="title">Action Playbook</div><div class="desc">Ranked queue, archetypes, tiers</div></div>
+    <div class="evidence-arrow">→</div>
+    <div class="evidence-node"><div class="week">W08</div><div class="title">Research Paper</div><div class="desc">Capstone documentation</div></div>
+  </div>
+
+  <h3>Notebooks</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Week</th><th>Notebook</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>W05</td><td><code>w05_model.ipynb</code></td><td>Model training and comparison (LR, RF, baseline)</td></tr>
+        <tr><td>W06</td><td><code>w06_validation_audit.ipynb</code></td><td>Independent validation and research-claim audit</td></tr>
+        <tr><td>W07</td><td><code>w07_action_playbook.ipynb</code></td><td>Action playbook and LR-ranked queue generation</td></tr>
+        <tr><td>W08</td><td><code>capstone.ipynb</code></td><td>Capstone paper and final documentation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>How to Rerun</h3>
+  <p><strong>Repository:</strong> <code>work/notebooks/capstone.ipynb</code>. <strong>Data:</strong> <code>FlyRank/internship-warehouse</code> on Hugging Face (gated; accept data-use terms). <strong>Dependencies:</strong> Python 3.12+, pandas, numpy, scikit-learn, matplotlib, huggingface-hub, python-dotenv. <strong>Environment:</strong> Set <code>HF_TOKEN</code> in <code>.env</code>. <strong>Execution:</strong> Run top-to-bottom.</p>
+</section>
+
+<!-- ═══════ 09 — ACKNOWLEDGMENTS ═══════ -->
+<section class="section reveal" id="acknowledgments">
+  <div class="section-label">09 — Acknowledgments</div>
+  <h2>Acknowledgments &amp; Data Credit</h2>
+  <p>Special thanks to the FlyRank team for the guidance, technical mentorship, and learning environment that supported this work.</p>
+
+  <div class="ack-team">
+    <div class="ack-person">
+      <strong>Alen Malkoč</strong>
+      <div class="ack-role">Founder &amp; CEO</div>
+    </div>
+    <div class="ack-person">
+      <strong>Mirza Ašćerić</strong>
+      <div class="ack-role">Director of AI, Agent Orchestration</div>
+    </div>
+    <div class="ack-person">
+      <strong>Eldin Pintol</strong>
+      <div class="ack-role">Director of AI, Prompt Engineering</div>
+    </div>
+  </div>
+
+  <p style="margin-top:1.5rem"><strong>Built on the <a href="https://flyrank.ai/" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset.</strong></p>
+  <p>The pseudonymized warehouse release (<code>FlyRank/internship-warehouse</code> on Hugging Face) was prepared by FlyRank for internship use. All client names, domains, URLs, raw search queries, and private identifiers were removed or pseudonymized before release.</p>
+</section>
+
+<!-- ═══════ FOOTER ═══════ -->
+<footer class="footer">
+  <p><strong>Ranking Pages for Content Review: A Decision-Support Model Using Observed Search Visibility Signals</strong></p>
+  <p>FlyRank ML Internship · Capstone Research Paper</p>
+  <p style="margin-top:.5rem">Built on the <a href="https://flyrank.ai/" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset. All data pseudonymized. No client-identifying information on this page.</p>
+  <p style="margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.4)">Observations only. No causal claims. No claims about Google's algorithm. Decision-support output.</p>
+</footer>
+
+<!-- ═══════ LIGHTBOX ═══════ -->
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Figure viewer">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
+<script>
+(function(){
+  /* ── Scroll position: ensure hero on root, respect deep links ── */
+  if(!window.location.hash){
+    if('scrollRestoration' in history){history.scrollRestoration = 'manual'}
+    window.scrollTo(0, 0);
+  } else {
+    if('scrollRestoration' in history){history.scrollRestoration = 'manual'}
+  }
+
+  /* ── Nav scroll ── */
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function(){
+    nav.classList.toggle('scrolled', window.scrollY > 10);
+  }, {passive:true});
+
+  /* ── Mobile menu ── */
+  var toggle = document.getElementById('navToggle');
+  var overlay = document.getElementById('mobileOverlay');
+  var mobileMenu = document.getElementById('mobileMenu');
+  var mobileClose = document.getElementById('mobileMenuClose');
+  var mobileLinks = mobileMenu.querySelectorAll('.mobile-menu-link');
+  var isMenuOpen = false;
+
+  function openMobileMenu(){
+    if(isMenuOpen) return;
+    isMenuOpen = true;
+    mobileMenu.classList.add('open');
+    overlay.classList.add('open');
+    mobileMenu.setAttribute('aria-hidden','false');
+    document.body.classList.add('menu-open');
+    toggle.setAttribute('aria-label','Close navigation menu');
+    updateMobileActive();
+  }
+
+  function closeMobileMenu(){
+    if(!isMenuOpen) return;
+    isMenuOpen = false;
+    mobileMenu.classList.remove('open');
+    overlay.classList.remove('open');
+    mobileMenu.setAttribute('aria-hidden','true');
+    document.body.classList.remove('menu-open');
+    toggle.setAttribute('aria-label','Open navigation menu');
+  }
+
+  toggle.addEventListener('click', function(){
+    if(isMenuOpen){ closeMobileMenu(); } else { openMobileMenu(); }
+  });
+  mobileClose.addEventListener('click', closeMobileMenu);
+  overlay.addEventListener('click', closeMobileMenu);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && isMenuOpen){ closeMobileMenu(); }
+  });
+
+  mobileLinks.forEach(function(link){
+    link.addEventListener('click', function(){
+      closeMobileMenu();
+    });
+  });
+
+  /* ── Active nav link (desktop) ── */
+  var sections = document.querySelectorAll('section[id], header[id]');
+  var navLinks = document.getElementById('navLinks').querySelectorAll('a');
+  function setActive(){
+    var scrollY = window.scrollY + 80;
+    var current = '';
+    sections.forEach(function(s){ if(s.offsetTop <= scrollY) current = s.id; });
+    navLinks.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
+  }
+  window.addEventListener('scroll', setActive, {passive:true});
+  setActive();
+
+  /* ── Active mobile menu link ── */
+  function updateMobileActive(){
+    var scrollY = window.scrollY + 80;
+    var current = '';
+    sections.forEach(function(s){ if(s.offsetTop <= scrollY) current = s.id; });
+    mobileLinks.forEach(function(link){
+      var sec = link.getAttribute('data-section');
+      link.classList.toggle('active', sec === current);
+    });
+  }
+  window.addEventListener('scroll', updateMobileActive, {passive:true});
+  updateMobileActive();
+
+  /* ── Progress bar ── */
+  var progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', function(){
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+    progressBar.style.width = pct + '%';
+  }, {passive:true});
+
+  /* ── Scroll reveal ── */
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var revealEls = document.querySelectorAll('.reveal');
+    var observer = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('visible'); observer.unobserve(e.target); }
+      });
+    }, {threshold:0.08});
+    revealEls.forEach(function(el){ observer.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('visible'); });
+  }
+
+  /* ── Figure lightbox ── */
+  var lightbox = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lightboxImg');
+  var lbCap = document.getElementById('lightboxCaption');
+  document.querySelectorAll('.figure-card[data-fig]').forEach(function(card){
+    card.addEventListener('click', function(){
+      lbImg.src = card.getAttribute('data-fig');
+      lbImg.alt = card.querySelector('h4').textContent;
+      lbCap.textContent = card.getAttribute('data-cap') || '';
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+  });
+  function closeLB(){
+    lightbox.classList.remove('open');
+    if(!isMenuOpen){ document.body.style.overflow = ''; }
+  }
+  document.getElementById('lightboxClose').addEventListener('click', closeLB);
+  lightbox.addEventListener('click', function(e){ if(e.target === lightbox) closeLB(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && lightbox.classList.contains('open')) closeLB(); });
+})();
+</script>
+</body>
+</html>
